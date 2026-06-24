@@ -15,10 +15,14 @@ const adam = {
     const betNote = adamAgeVerifier.canDiscussBetting()
       ? ' You can ask about **buttons, beads, and pretend bets** too.'
       : ' Ask me anything about rules and scoring — pretend bets with buttons and beads need **18+** (set your birthday in Settings).';
-    const llmNote = typeof adamLlmSettings !== 'undefined' && adamLlmSettings.isUsable()
+    const llmUsable = typeof adamLlmSettings !== 'undefined' && adamLlmSettings.isUsable();
+    const llmNote = llmUsable
       ? ' **GPT is on** — plain-English on rules, beads, buttons, teach mode, and brief off-topic help.'
-      : ' Optional **GPT** in Settings for plain-English polish — rules guide stays the source of truth.';
-    return `Hey — I'm **${ADAM_BOT_NAME}**, your **Volcano Vent Dice** guide.${betNote}\n\nSay **"teach me"** for a **brief summary** then **learn by questions** — not a lecture.${llmNote}\n\nPlain English anytime: the **Vent**, **2+2+2**, lucky charm, variants, house rules. **"Full rules"** only if you want the long version.`;
+      : ' Rule-based guide works now — optional **GPT** adds plain-English polish.';
+    const setupNote = !llmUsable && typeof adamLlmSettings !== 'undefined'
+      ? `\n\n${adamLlmSettings.setupGuideShort()}`
+      : '';
+    return `Hey — I'm **${ADAM_BOT_NAME}**, your **Volcano Vent Dice** guide.${betNote}\n\nSay **"teach me"** for a **brief summary** then **learn by questions** — not a lecture.${llmNote}${setupNote}\n\nPlain English anytime: the **Vent**, **2+2+2**, lucky charm, variants, house rules. **"Full rules"** only if you want the long version.`;
   },
 
   respond(message) {
@@ -125,6 +129,7 @@ const adam = {
     if (this._isBettingFollowUp(m)) return this._bettingFollowUp(m);
     if (this._isWhatNext(m)) return this._whatNext();
     if (this._isWho(m)) return this._who();
+    if (this._isGptSetupQuestion(m)) return this._gptSetupGuide(m);
     if (this._isOtherDiceGameQuestion(m)) return this._otherDiceGameRedirect();
     if (/set\s+birthday|save\s+birthday|my\s+birthday/.test(m)) {
       adamAgeVerifier.openModal();
@@ -751,7 +756,34 @@ const adam = {
   },
 
   _who() {
-    return `I am **${ADAM_BOT_NAME}** — your guide for **Volcano Vent Dice** only. Your chats are **strictly confidential** — never shared with other users, like any private GPT session. I quote from the **Volcano Vent Dice Home Rule Guide** stored in this app, plus plain-English help on scoring, setup, and variants. For pretend bets I only advise **buttons, beads, and craft things** (seeds, pebbles, marbles, clips, jacks) — two house rules, **18+** with a saved birthday. I do not discuss other dice games.`;
+    const gptNote = typeof adamLlmSettings !== 'undefined' && adamLlmSettings.isUsable()
+      ? ' **GPT is on** for plain-English answers.'
+      : ' Say **"setup GPT"** for API key + billing credits steps.';
+    return `I am **${ADAM_BOT_NAME}** — your guide for **Volcano Vent Dice** only. Your chats are **strictly confidential** — never shared with other users, like any private GPT session.${gptNote} I quote from the **Volcano Vent Dice Home Rule Guide** stored in this app, plus plain-English help on scoring, setup, and variants. For pretend bets I only advise **buttons, beads, and craft things** (seeds, pebbles, marbles, clips, jacks) — two house rules, **18+** with a saved birthday. I do not discuss other dice games.`;
+  },
+
+  _isGptSetupQuestion(m) {
+    return (
+      /setup\s+gpt|set\s+up\s+gpt|enable\s+gpt|turn\s+on\s+gpt|gpt\s+setup|how\s+(?:do|to)\s+(?:i|we)\s+(?:set\s+up|enable|use|get)\s+gpt/.test(m)
+      || (/api\s+key|openai\s+key|sk-/.test(m) && /(?:how|where|set\s+up|paste|get|create|add)/.test(m))
+      || /openai\s+(?:account|billing|credits?|api)/.test(m)
+      || /billing\s+credits?|add\s+credits?|pay\s+as\s+you\s+go/.test(m)
+      || /how\s+(?:do|to)\s+(?:i|we)\s+(?:use|connect)\s+(?:gpt|openai)/.test(m)
+      || /^gpt\s+settings?$|^openai\s+settings?$/.test(m.trim())
+    );
+  },
+
+  _gptSetupGuide(m) {
+    if (typeof adamLlmSettings !== 'undefined' && adamLlmSettings.isUsable()) {
+      const label = adamLlmSettings.modelLabel(adamLlmSettings.get().model);
+      return `**GPT is already on** (${label}). Open **Settings ⚙️** to change model or key.\n\n${adamLlmSettings.setupGuideFull()}`;
+    }
+    if (typeof openSettings === 'function' && /settings|⚙/.test(m)) {
+      openSettings();
+    }
+    return typeof adamLlmSettings !== 'undefined'
+      ? adamLlmSettings.setupGuideFull()
+      : 'Open **Settings ⚙️** → **GPT** to paste an OpenAI API key (sk-…) and add billing credits at platform.openai.com/account/billing.';
   },
 
   _isOtherDiceGameQuestion(m) {
@@ -791,7 +823,11 @@ const adam = {
     out += '• **Teach menu** — plain-English starters for all modes & house rules\n';
     out += '• **Full rules** — long version only if you ask\n';
     out += '• **Variants** — paper lives, short game, gentle Vent\n';
-    out += '• **Settings** — pick **GPT model** + API key (optional)\n';
+    if (typeof adamLlmSettings !== 'undefined' && adamLlmSettings.isUsable()) {
+      out += '• **GPT** — on (plain-English answers)\n';
+    } else {
+      out += '• **Setup GPT** — say **"setup GPT"** for API key + billing credits (or **Settings ⚙️**)\n';
+    }
     if (adamAgeVerifier.canDiscussBetting()) {
       out += '• **Pretend bets** — buttons, beads, house rules one and two\n';
     } else {

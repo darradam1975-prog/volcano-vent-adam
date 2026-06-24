@@ -25,8 +25,30 @@ const adamConversations = {
     this._cloudSyncReady = true;
     this.renderList();
     this.loadActiveIntoChat();
+    this._maybeShowGptSetupIntro();
     this._updateSyncHint();
     this._bindVisibilitySync();
+  },
+
+  _maybeShowGptSetupIntro() {
+    if (typeof adamLlmSettings === 'undefined' || adamLlmSettings.isUsable()) return;
+    if (adamLlmSettings.hasShownSetupIntro()) return;
+    const conv = this.getActive();
+    if (!conv?.messages?.length) return;
+    const last = conv.messages[conv.messages.length - 1];
+    if (last.role !== 'assistant' || !/Volcano Vent Dice/.test(last.text || '')) return;
+
+    const guide = adamLlmSettings.setupGuideFull();
+    const source = typeof ADAM_SOURCE !== 'undefined' ? ADAM_SOURCE : '🌋 Adam The Volcano Vent Bot';
+    if (typeof window.renderChatMessage === 'function') {
+      window.renderChatMessage('assistant', guide, source, { persist: false });
+    }
+    conv.messages.push({ role: 'assistant', text: guide, source, at: Date.now() });
+    adamLlmSettings.markSetupIntroShown();
+    this._saveLocal();
+    if (typeof adamChatScroll !== 'undefined') {
+      adamChatScroll.scrollToLatest({ force: true });
+    }
   },
 
   _loadLocal() {
@@ -164,6 +186,7 @@ const adamConversations = {
     this._saveLocal();
     this.renderList();
     this.loadActiveIntoChat({ greet: true, silent });
+    this._maybeShowGptSetupIntro();
     this._closeMobileSidebar();
     return conv;
   },

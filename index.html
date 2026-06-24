@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=54">
+  <link rel="stylesheet" href="css/styles.css?v=55">
 </head>
 <body>
   <div class="app-shell">
@@ -136,7 +136,14 @@
         </section>
         <section class="settings-section settings-llm">
           <h3>GPT (optional)</h3>
-          <p id="llm-status">Rule-based bot only — add an OpenAI key to enable GPT.</p>
+          <p id="llm-status">GPT not set up — follow the steps below.</p>
+          <ol class="settings-steps" id="llm-setup-steps">
+            <li>Sign in at <a href="https://platform.openai.com" target="_blank" rel="noopener">platform.openai.com</a></li>
+            <li>Add <strong>billing credits</strong> at <a href="https://platform.openai.com/account/billing" target="_blank" rel="noopener">platform.openai.com/account/billing</a> (pay-as-you-go)</li>
+            <li>Create an API key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a> (<strong>sk-</strong>…)</li>
+            <li>Paste key below, pick a model, <strong>Test connection</strong>, then <strong>Save GPT settings</strong></li>
+            <li>Turn on <strong>Use GPT for plain-English answers</strong></li>
+          </ol>
           <label>
             <input type="checkbox" id="llm-enabled">
             Use GPT for plain-English answers (teach by questions)
@@ -204,15 +211,15 @@
     </div>
   </div>
 
-  <script src="js/rules.js?v=54"></script>
-  <script src="js/teach-flow.js?v=54"></script>
-  <script src="js/llm-settings.js?v=54"></script>
-  <script src="js/chat-scroll.js?v=54"></script>
-  <script src="js/conversations.js?v=54"></script>
-  <script src="js/age-verify.js?v=54"></script>
-  <script src="js/voice.js?v=54"></script>
-  <script src="js/llm.js?v=54"></script>
-  <script src="js/adam.js?v=54"></script>
-  <script src="js/app.js?v=54"></script>
+  <script src="js/rules.js?v=55"></script>
+  <script src="js/teach-flow.js?v=55"></script>
+  <script src="js/llm-settings.js?v=55"></script>
+  <script src="js/chat-scroll.js?v=55"></script>
+  <script src="js/conversations.js?v=55"></script>
+  <script src="js/age-verify.js?v=55"></script>
+  <script src="js/voice.js?v=55"></script>
+  <script src="js/llm.js?v=55"></script>
+  <script src="js/adam.js?v=55"></script>
+  <script src="js/app.js?v=55"></script>
 </body>
 </html>

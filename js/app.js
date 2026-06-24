@@ -153,6 +153,7 @@ async function saveAllSettingsAndClose() {
 function initApp() {
   initAdamAgeVerifier();
   adamVoice.init();
+  adamLlmSettings?.initSettingsUi?.();
   adamLlmSettings?.bindSettingsUi?.();
   adamChatScroll?.init?.();
   adamConversations?.init?.();

@@ -2,6 +2,7 @@
  * Optional OpenAI / GPT settings — API key stays on this device only.
  */
 const ADAM_LLM_KEY = 'adam-llm-settings';
+const ADAM_GPT_SETUP_INTRO_KEY = 'adam-gpt-setup-intro-v1';
 
 const ADAM_GPT_MODELS = [
   { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini (recommended — fast & smart)', group: 'Latest' },
@@ -75,6 +76,42 @@ const adamLlmSettings = {
   isUsable() {
     const s = this.get();
     return s.enabled && s.apiKey.length > 10;
+  },
+
+  needsSetup() {
+    return !this.isUsable();
+  },
+
+  setupGuideShort() {
+    return '**Want GPT plain-English?** Tap **Settings ⚙️** or say **"setup GPT"** for step-by-step **API key + billing credits**.';
+  },
+
+  setupGuideFull() {
+    return (
+      '**How to set up GPT (optional)** — your key stays on this device only.\n\n'
+      + '1. **Sign in** at [platform.openai.com](https://platform.openai.com) (create an account if needed).\n'
+      + '2. **Add billing credits** at [platform.openai.com/account/billing](https://platform.openai.com/account/billing) — GPT uses a small **pay-as-you-go** balance (not the same as free ChatGPT).\n'
+      + '3. **Create an API key** at [platform.openai.com/api-keys](https://platform.openai.com/api-keys) → **Create secret key** (must start with **sk-**).\n'
+      + '4. In this app, tap **Settings ⚙️** → scroll to **GPT (optional)**.\n'
+      + '5. Pick a model — **GPT-5.4 mini** is recommended (fast and low cost).\n'
+      + '6. Paste your **sk-** key → **Test connection** → **Save GPT settings**.\n'
+      + '7. Turn on **Use GPT for plain-English answers**.\n\n'
+      + 'Without GPT, the rule-based guide still works. Chats are **never shared with other users**.'
+    );
+  },
+
+  hasShownSetupIntro() {
+    try {
+      return localStorage.getItem(ADAM_GPT_SETUP_INTRO_KEY) === '1';
+    } catch {
+      return false;
+    }
+  },
+
+  markSetupIntroShown() {
+    try {
+      localStorage.setItem(ADAM_GPT_SETUP_INTRO_KEY, '1');
+    } catch { /* ignore */ }
   },
 
   modelLabel(id) {
@@ -174,13 +211,15 @@ const adamLlmSettings = {
     if (custom) custom.value = s.customModel || (ADAM_GPT_MODELS.some(m => m.id === s.model) ? '' : s.model);
     if (key) key.value = s.apiKey;
     this.syncCustomModelVisibility();
+    const steps = document.getElementById('llm-setup-steps');
+    if (steps) steps.classList.toggle('hidden', this.isUsable());
     if (status) {
       if (!s.apiKey) {
-        status.textContent = 'Rule-based bot only — add an OpenAI key to enable GPT.';
+        status.textContent = 'GPT not set up — follow the steps below: sign in at OpenAI, add billing credits, create an sk- key, then Test connection and Save.';
       } else if (s.enabled) {
         status.textContent = `GPT on: ${this.modelLabel(s.model === 'custom' ? 'custom' : s.model)}. Falls back to rules if the API fails.`;
       } else {
-        status.textContent = 'API key saved — turn on GPT and click Test connection.';
+        status.textContent = 'API key saved — turn on GPT, Test connection, then Save GPT settings.';
       }
     }
   },
@@ -265,6 +304,7 @@ const adamLlmSettings = {
 };
 
 if (typeof globalThis !== 'undefined') {
+  globalThis.ADAM_GPT_SETUP_INTRO_KEY = ADAM_GPT_SETUP_INTRO_KEY;
   globalThis.ADAM_GPT_MODELS = ADAM_GPT_MODELS;
   globalThis.ADAM_GPT_TEST_FALLBACKS = ADAM_GPT_TEST_FALLBACKS;
   globalThis.adamLlmSettings = adamLlmSettings;

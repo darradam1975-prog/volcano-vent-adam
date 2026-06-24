@@ -75,6 +75,13 @@ check('system prompt blocks other dice games', /NEVER discuss.*other dice/i.test
 check('system prompt confidential chats', /strictly confidential.*never shared with other users/i.test(adamLlm.buildSystemPrompt()));
 check('off topic prompt confidential chats', /strictly confidential.*never shared with other users/i.test(adamLlm.buildOffTopicSystemPrompt()));
 check('who mentions confidential chats', /strictly confidential|never shared with other users/i.test(adam.respond('who are you?')));
+check('greet hints gpt setup when off', /setup GPT|API key|billing credits/i.test(adam.greet()));
+localStorage.removeItem('adam-llm-settings');
+check('setup gpt guide has billing credits', /billing credits|platform\.openai\.com\/account\/billing/i.test(adam.respond('setup GPT')));
+check('api key how to routes setup', /Create an API key|sk-/i.test(adam.respond('how do I get an API key')));
+check('help mentions setup gpt when off', /setup GPT|API key/i.test(adam.respond('help')));
+localStorage.setItem('adam-llm-settings', JSON.stringify({ enabled: true, model: 'gpt-5.4-mini', apiKey: 'sk-test1234567890', customModel: '' }));
+check('setup gpt when already on', /GPT is already on/i.test(adam.respond('setup GPT')));
 check('kids paper lives', /paper|lives|no pretend/i.test(adam.respond('can kids play?')));
 check('winning last tokens', /last player|tokens/i.test(adam.respond('who wins?')));
 check('can three dice equal 6', /Yes.*three dice can equal 6/i.test(adam.respond('can three dice equal 6?')));

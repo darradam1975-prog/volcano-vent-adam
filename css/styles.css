@@ -890,6 +890,22 @@ body.modal-open {
   margin: 4px 0 10px;
 }
 
+.settings-steps {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0 0 12px 1.1rem;
+  padding: 0;
+  line-height: 1.45;
+}
+
+.settings-steps li {
+  margin-bottom: 6px;
+}
+
+.settings-steps a {
+  color: var(--accent, #e8a87c);
+}
+
 .settings-voice input[type="range"] {
   width: 100%;
   margin-top: 4px;
