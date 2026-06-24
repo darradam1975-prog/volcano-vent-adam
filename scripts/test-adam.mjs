@@ -72,6 +72,9 @@ check('other dice game not off topic signal', !adam._isLikelyOffTopic('how do yo
 check('off topic prompt blocks other dice games', /NEVER discuss.*other dice games/i.test(adamLlm.buildOffTopicSystemPrompt()));
 check('off topic prompt craft bets only', /pretend.*antes|craft tokens|Never suggest real money/i.test(adamLlm.buildOffTopicSystemPrompt()));
 check('system prompt blocks other dice games', /NEVER discuss.*other dice/i.test(adamLlm.buildSystemPrompt()));
+check('system prompt confidential chats', /strictly confidential.*never shared with other users/i.test(adamLlm.buildSystemPrompt()));
+check('off topic prompt confidential chats', /strictly confidential.*never shared with other users/i.test(adamLlm.buildOffTopicSystemPrompt()));
+check('who mentions confidential chats', /strictly confidential|never shared with other users/i.test(adam.respond('who are you?')));
 check('kids paper lives', /paper|lives|no pretend/i.test(adam.respond('can kids play?')));
 check('winning last tokens', /last player|tokens/i.test(adam.respond('who wins?')));
 check('can three dice equal 6', /Yes.*three dice can equal 6/i.test(adam.respond('can three dice equal 6?')));

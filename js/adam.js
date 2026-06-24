@@ -751,7 +751,7 @@ const adam = {
   },
 
   _who() {
-    return `I am **${ADAM_BOT_NAME}** — your guide for **Volcano Vent Dice** only. I quote from the **Volcano Vent Dice Home Rule Guide** stored in this app, plus plain-English help on scoring, setup, and variants. For pretend bets I only advise **buttons, beads, and craft things** (seeds, pebbles, marbles, clips, jacks) — two house rules, **18+** with a saved birthday. I do not discuss other dice games.`;
+    return `I am **${ADAM_BOT_NAME}** — your guide for **Volcano Vent Dice** only. Your chats are **strictly confidential** — never shared with other users, like any private GPT session. I quote from the **Volcano Vent Dice Home Rule Guide** stored in this app, plus plain-English help on scoring, setup, and variants. For pretend bets I only advise **buttons, beads, and craft things** (seeds, pebbles, marbles, clips, jacks) — two house rules, **18+** with a saved birthday. I do not discuss other dice games.`;
   },
 
   _isOtherDiceGameQuestion(m) {

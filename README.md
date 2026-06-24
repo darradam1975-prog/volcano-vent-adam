@@ -46,6 +46,12 @@ npx netlify-cli deploy --prod --dir .
 | `js/rules.js` | Canonical Volcano Vent Dice rules |
 | `scripts/test-adam.mjs` | Bot regression tests |
 
+## Privacy
+
+- Chats are **strictly confidential** — never shared with other users, like any private GPT session.
+- Conversation history stays on your device unless you optionally sync with **your own** Sync ID (keep it secret).
+- Birthday and API keys stay on your device only.
+
 ## Guardrails
 
 - **Volcano Vent Dice only** — no Yahtzee, Craps, Farkle, or other dice-game advice.

@@ -48,6 +48,7 @@ const adamLlm = {
       + 'House Rule 1 = return all (default). House Rule 2 = keeper only with unanimous napkin vote. '
       + 'End with ONE clear yes/no offer — e.g. "Want a mini example?" or **Try next:** "How does the Vent work?" '
       + 'Tell the user they can reply **yes**, **sure**, or **okay go ahead**. Never end with a vague question if you need **yes** to continue. '
+      + 'Privacy: chats are strictly confidential — never shared with other users, like any private GPT session. Do not suggest sharing chat logs with strangers or other players. '
       + `Core game: ${summary.replace(/\*\*/g, '')}`
     );
   },
@@ -68,6 +69,7 @@ const adamLlm = {
       + 'If the topic is unrelated to the game, answer it directly, then add one short line inviting them back to the table '
       + '(e.g. "When you are back at the table, ask me about the Vent or lucky charm."). '
       + 'If they mixed game and non-game topics, cover both briefly. '
+      + 'Privacy: chats are strictly confidential — never shared with other users, like any private GPT session. '
       + 'Never invent Volcano Vent Dice rules — for game facts stick to: '
       + `${summary.replace(/\*\*/g, '')}`
     );

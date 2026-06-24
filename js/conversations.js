@@ -534,8 +534,8 @@ const adamConversations = {
     const el = document.getElementById('sync-hint');
     if (!el) return;
     el.textContent = id
-      ? `Sync ID set — chats sync across devices`
-      : 'Saved on this device — add a Sync ID in Settings for mobile + web';
+      ? `Your Sync ID — private sync across your devices only`
+      : 'Private on this device — never shared with other users';
   },
 
   bindUi() {
