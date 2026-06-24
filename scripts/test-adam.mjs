@@ -82,6 +82,9 @@ check('api key how to routes setup', /Create an API key|sk-/i.test(adam.respond(
 check('help mentions setup gpt when off', /setup GPT|API key/i.test(adam.respond('help')));
 localStorage.setItem('adam-llm-settings', JSON.stringify({ enabled: true, model: 'gpt-5.4-mini', apiKey: 'sk-test1234567890', customModel: '' }));
 check('setup gpt when already on', /GPT is already on/i.test(adam.respond('setup GPT')));
+check('settings mini guide lines', adamLlmSettings.setupGuideMiniLines().length === 5);
+check('settings mini guide has billing', /billing credits/i.test(adamLlmSettings.renderSetupMiniHtml()));
+check('settings mini guide has sk key', /sk-/.test(adamLlmSettings.renderSetupMiniHtml()));
 check('kids paper lives', /paper|lives|no pretend/i.test(adam.respond('can kids play?')));
 check('winning last tokens', /last player|tokens/i.test(adam.respond('who wins?')));
 check('can three dice equal 6', /Yes.*three dice can equal 6/i.test(adam.respond('can three dice equal 6?')));

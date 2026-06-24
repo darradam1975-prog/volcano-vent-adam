@@ -86,6 +86,33 @@ const adamLlmSettings = {
     return '**Want GPT plain-English?** Tap **Settings ⚙️** or say **"setup GPT"** for step-by-step **API key + billing credits**.';
   },
 
+  /** Compact copy for Settings panel (plain text lines). */
+  setupGuideMiniLines() {
+    return [
+      'Sign in at platform.openai.com',
+      'Add billing credits (pay-as-you-go)',
+      'Create API key (sk-…) at API keys page',
+      'Paste key here → pick model → Test → Save',
+      'Turn on “Use GPT for plain-English answers”'
+    ];
+  },
+
+  renderSetupMiniHtml() {
+    const links = [
+      '<a href="https://platform.openai.com" target="_blank" rel="noopener">Sign in</a>',
+      '<a href="https://platform.openai.com/account/billing" target="_blank" rel="noopener">Add billing credits</a> (pay-as-you-go)',
+      'Create <strong>sk-</strong> key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">API keys</a>',
+      'Paste below → pick model → <strong>Test connection</strong> → <strong>Save</strong>',
+      'Turn on <strong>Use GPT</strong> above'
+    ];
+    return (
+      '<p class="settings-setup-mini-title"><strong>Quick GPT setup</strong></p>'
+      + '<ol class="settings-setup-mini">'
+      + links.map((line, i) => `<li>${line}</li>`).join('')
+      + '</ol>'
+    );
+  },
+
   setupGuideFull() {
     return (
       '**How to set up GPT (optional)** — your key stays on this device only.\n\n'
@@ -211,8 +238,14 @@ const adamLlmSettings = {
     if (custom) custom.value = s.customModel || (ADAM_GPT_MODELS.some(m => m.id === s.model) ? '' : s.model);
     if (key) key.value = s.apiKey;
     this.syncCustomModelVisibility();
+    const mini = document.getElementById('llm-setup-mini');
     const steps = document.getElementById('llm-setup-steps');
-    if (steps) steps.classList.toggle('hidden', this.isUsable());
+    const showSetup = !this.isUsable();
+    if (mini) {
+      mini.innerHTML = showSetup ? this.renderSetupMiniHtml() : '';
+      mini.classList.toggle('hidden', !showSetup);
+    }
+    if (steps) steps.classList.toggle('hidden', true);
     if (status) {
       if (!s.apiKey) {
         status.textContent = 'GPT not set up — follow the steps below: sign in at OpenAI, add billing credits, create an sk- key, then Test connection and Save.';

@@ -890,6 +890,40 @@ body.modal-open {
   margin: 4px 0 10px;
 }
 
+.settings-setup-mini-wrap {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-setup-mini-wrap.hidden {
+  display: none;
+}
+
+.settings-setup-mini-title {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.settings-setup-mini {
+  margin: 0 0 0 1.1rem;
+  padding: 0;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.settings-setup-mini li {
+  margin-bottom: 4px;
+}
+
+.settings-setup-mini a {
+  color: var(--accent, #e8a87c);
+}
+
 .settings-steps {
   font-size: 0.78rem;
   color: var(--text-muted);
