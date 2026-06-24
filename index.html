@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a0f0a">
+  <title>Adam The Volcano Vent Bot</title>
+  <meta name="description" content="Chat with Adam The Volcano Vent Bot about Volcano Vent Dice rules, scoring, and pretend bets with buttons and beads. English voice, age-verified betting chat for 18+.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=53">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+    <aside class="conv-sidebar" id="conv-sidebar" aria-label="Conversation history">
+      <div class="sidebar-head">
+        <button class="new-conv-btn" id="new-conversation-btn" type="button">+ New conversation</button>
+        <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Close history">&times;</button>
+      </div>
+      <p class="sync-hint" id="sync-hint">Saved on this device</p>
+      <ul class="conv-list" id="conv-list"></ul>
+    </aside>
+
+    <div class="main-column">
+  <header class="header">
+      <div class="brand">
+        <button class="icon-btn sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Open conversation history" title="Conversations">☰</button>
+        <div class="brand-icon" aria-hidden="true">🌋</div>
+        <div>
+          <h1>Adam The Volcano Vent Bot</h1>
+          <p class="tagline">Volcano Vent Dice · home rule guide</p>
+        </div>
+      </div>
+      <div class="header-controls">
+        <button class="icon-btn header-new-btn" id="header-new-conversation-btn" type="button" title="New conversation" aria-label="New conversation">+</button>
+        <span class="age-badge guest" id="age-badge" title="Set birthday in Settings">Guest</span>
+        <button class="icon-btn" id="voice-toggle" type="button" title="Listen: off — tap to hear Adam The Volcano Vent Bot speak">
+          <span class="voice-icon" aria-hidden="true">🔇</span>
+          <span class="voice-label">Listen off</span>
+        </button>
+        <button class="icon-btn" id="settings-btn" type="button" title="Settings" aria-label="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <details class="rules-card" aria-label="Quick reference">
+      <summary class="rules-card-summary">
+        <span class="rules-card-title">Volcano Vent Dice</span>
+        <span class="rules-card-toggle">Quick rules</span>
+      </summary>
+      <div class="rules-card-body">
+      <h2 class="rules-card-title-desktop">Volcano Vent Dice</h2>
+      <ul>
+        <li>6 dice · 3 tokens each · lucky charm <strong>1–6</strong> (write on paper — group remembers)</li>
+        <li>Countdown <strong>6→5→4→3→2→1</strong> — <strong>2+2+2=6</strong> (3 dice); pass the rest</li>
+        <li>Miss? Rescue with lucky charm or lose a token on the <strong>Vent</strong></li>
+      </ul>
+      <div class="house-rules">
+        <strong>Pretend antes (18+):</strong> beads, buttons, seeds, pebbles, clips, marbles, jacks — mixed pot OK; never poker chips, gold/silver, or real money.<br>
+        <strong>House Rule 1:</strong> everyone gets tokens back (default).<br>
+        <strong>House Rule 2:</strong> unanimous <em>napkin vote</em> — skip if anyone hesitates; no chasing losses, no double-or-nothing.<br>
+        <strong>If things get out of hand:</strong> <a href="tel:18004262537">1-800-GAMBLER</a> (1-800-426-2537) — free, 24/7.
+      </div>
+      </div>
+    </details>
+
+    <main class="chat-wrap">
+      <div class="chat-viewport" id="chat-viewport">
+        <div class="chat-fade-top" aria-hidden="true"></div>
+        <p class="chat-scroll-hint hidden" id="chat-scroll-hint">↑ Scroll up for older messages</p>
+        <div class="chat-messages" id="chat" role="log" aria-live="polite" aria-label="Chat with Adam The Volcano Vent Bot">
+          <div class="chat-top-spacer" id="chat-top-spacer" aria-hidden="true"></div>
+          <div class="chat-scroll-anchor" id="chat-scroll-anchor" aria-hidden="true"></div>
+        </div>
+        <div class="chat-scrollbar" id="chat-scrollbar" aria-hidden="true">
+          <div class="chat-scrollbar-thumb" id="chat-scrollbar-thumb"></div>
+        </div>
+      </div>
+      <div class="typing hidden" id="typing">Adam The Volcano Vent Bot is thinking…</div>
+      <div class="quick-chips">
+        <button class="quick-chip" type="button" data-prompt="Teach me">Teach me</button>
+        <button class="quick-chip" type="button" data-prompt="Full rules">Full rules</button>
+        <button class="quick-chip" type="button" data-prompt="How does scoring work?">Scoring</button>
+        <button class="quick-chip" type="button" data-prompt="What happens on a tie?">Ties</button>
+        <button class="quick-chip" type="button" data-prompt="How do beads work?">Beads</button>
+        <button class="quick-chip" type="button" data-prompt="How do buttons work?">Buttons</button>
+        <button class="quick-chip" type="button" data-prompt="House rules for pretend bets">House rules</button>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Ask Adam The Volcano Vent Bot about Volcano Vent Dice…" autocomplete="off" aria-label="Your message">
+        <button id="send-btn" type="button">Send</button>
+      </div>
+    </main>
+
+    <p class="footer-note">Birthday stays on your device only. Pretend bets with buttons &amp; beads require age 18+.</p>
+    </div>
+  </div>
+
+  <!-- Age verification modal -->
+  <div class="modal-overlay" id="age-modal" role="dialog" aria-labelledby="age-modal-title" aria-modal="true">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="age-modal-title">Birthday check</h2>
+        <button class="modal-close" id="age-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="age-intro">To discuss <strong>pretend bets</strong> with buttons and beads, save a real birthday on this device. You must be <strong>18 or older</strong>. Game rules are always available — no birthday needed.</p>
+        <div id="birthday-picker-modal"></div>
+        <p class="age-error hidden" id="age-error"></p>
+        <div class="modal-actions">
+          <button class="btn-primary" id="age-confirm" type="button">Save birthday</button>
+          <button class="btn-secondary" id="age-dismiss" type="button">Not now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-overlay" id="settings-modal" role="dialog" aria-labelledby="settings-title" aria-modal="true">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="settings-title">Settings</h2>
+        <button class="modal-close" id="settings-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <section class="settings-section">
+          <h3>Birthday</h3>
+          <p id="settings-birthday-status">No birthday saved yet. Pretend-bet chat needs 18+.</p>
+          <div id="birthday-picker-settings"></div>
+          <p class="settings-error hidden" id="settings-birthday-error"></p>
+          <div class="modal-actions">
+            <button class="btn-primary" id="settings-save-birthday" type="button">Save birthday</button>
+            <button class="btn-secondary" id="settings-clear-birthday" type="button">Clear</button>
+          </div>
+        </section>
+        <section class="settings-section settings-llm">
+          <h3>GPT (optional)</h3>
+          <p id="llm-status">Rule-based bot only — add an OpenAI key to enable GPT.</p>
+          <label>
+            <input type="checkbox" id="llm-enabled">
+            Use GPT for plain-English answers (teach by questions)
+          </label>
+          <label>
+            Model
+            <select id="llm-model"></select>
+          </label>
+          <label id="llm-custom-model-wrap" class="hidden">
+            Custom model ID
+            <input type="text" id="llm-model-custom" placeholder="e.g. gpt-5.4-mini" autocomplete="off">
+          </label>
+          <label>
+            OpenAI API key
+            <input type="password" id="llm-api-key" placeholder="sk-…" autocomplete="off">
+          </label>
+          <p class="settings-note">Get a key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a> — must start with <strong>sk-</strong> (not Grok/xAI). Add billing at <a href="https://platform.openai.com/account/billing" target="_blank" rel="noopener">platform.openai.com/account/billing</a>. Key stays on this device. With GPT on, Adam The Volcano Vent Bot answers in <strong>plain English</strong> — Volcano Vent rules, teach mode, and brief <strong>off-topic</strong> help (never other dice games; pretend bets = buttons, beads, and craft things only).</p>
+          <p class="settings-error hidden" id="settings-llm-error"></p>
+          <div class="modal-actions">
+            <button class="btn-primary" id="settings-save-llm" type="button">Save GPT settings</button>
+            <button class="btn-secondary" id="settings-test-llm" type="button">Test connection</button>
+            <button class="btn-secondary" id="settings-clear-llm-key" type="button">Clear key</button>
+          </div>
+        </section>
+        <section class="settings-section settings-sync">
+          <h3>Sync conversations (mobile + web)</h3>
+          <p id="sync-settings-status" class="settings-note">Use the same Sync ID on phone and computer to share chat history.</p>
+          <label>
+            Sync ID
+            <input type="text" id="sync-id-input" placeholder="e.g. vent-dice-lava-a3f9" autocomplete="off" spellcheck="false">
+          </label>
+          <p class="settings-note">Same Sync ID on phone + computer auto-syncs when cloud is available. Or use <strong>Export / Import</strong> below anytime.</p>
+          <div class="modal-actions">
+            <button class="btn-secondary" id="sync-generate-id" type="button">Generate</button>
+            <button class="btn-primary" id="sync-save-id" type="button">Save &amp; sync</button>
+            <button class="btn-secondary" id="sync-now" type="button">Sync now</button>
+            <button class="btn-secondary" id="sync-clear-id" type="button">Clear ID</button>
+          </div>
+          <div class="modal-actions sync-bundle-actions">
+            <button class="btn-secondary" id="sync-export-bundle" type="button">Export bundle</button>
+            <button class="btn-secondary" id="sync-import-bundle" type="button">Import bundle</button>
+          </div>
+          <textarea id="sync-bundle-text" class="sync-bundle-text hidden" rows="4" placeholder="Paste sync bundle here, then tap Import bundle" spellcheck="false"></textarea>
+        </section>
+        <section class="settings-section settings-voice">
+          <h3>Voice</h3>
+          <label>
+            <input type="checkbox" id="voice-auto">
+            Read bot replies aloud (English)
+          </label>
+          <label>
+            Speech speed
+            <input type="range" id="voice-rate" min="0.6" max="1.2" step="0.05" value="0.92">
+          </label>
+        </section>
+      </div>
+      <div class="settings-footer">
+        <p class="settings-save-all-status hidden" id="settings-save-all-status"></p>
+        <button class="btn-primary settings-save-all-btn" id="settings-save-all" type="button">Close &amp; save all</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/rules.js?v=53"></script>
+  <script src="js/teach-flow.js?v=53"></script>
+  <script src="js/llm-settings.js?v=53"></script>
+  <script src="js/chat-scroll.js?v=53"></script>
+  <script src="js/conversations.js?v=53"></script>
+  <script src="js/age-verify.js?v=53"></script>
+  <script src="js/voice.js?v=53"></script>
+  <script src="js/llm.js?v=53"></script>
+  <script src="js/adam.js?v=53"></script>
+  <script src="js/app.js?v=53"></script>
+</body>
+</html>

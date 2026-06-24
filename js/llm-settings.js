@@ -1,0 +1,271 @@
+/**
+ * Optional OpenAI / GPT settings — API key stays on this device only.
+ */
+const ADAM_LLM_KEY = 'adam-llm-settings';
+
+const ADAM_GPT_MODELS = [
+  { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini (recommended — fast & smart)', group: 'Latest' },
+  { id: 'gpt-5.4-nano', label: 'GPT-5.4 nano (cheapest)', group: 'Latest' },
+  { id: 'gpt-5.4', label: 'GPT-5.4', group: 'Latest' },
+  { id: 'gpt-5.5', label: 'GPT-5.5 (best quality)', group: 'Latest' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o mini', group: 'Standard' },
+  { id: 'gpt-4o', label: 'GPT-4o', group: 'Standard' },
+  { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini', group: 'Standard' },
+  { id: 'gpt-4.1', label: 'GPT-4.1', group: 'Standard' },
+  { id: 'gpt-4-turbo', label: 'GPT-4 Turbo', group: 'Legacy' },
+  { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', group: 'Legacy' },
+  { id: 'o3-mini', label: 'o3-mini (reasoning)', group: 'Reasoning' },
+  { id: 'custom', label: 'Other — type model ID below', group: 'Custom' }
+];
+
+const ADAM_GPT_TEST_FALLBACKS = ['gpt-5.4-mini', 'gpt-4o-mini', 'gpt-4o'];
+
+const adamLlmSettings = {
+  get() {
+    try {
+      const raw = localStorage.getItem(ADAM_LLM_KEY);
+      if (!raw) return this.defaults();
+      return { ...this.defaults(), ...JSON.parse(raw) };
+    } catch {
+      return this.defaults();
+    }
+  },
+
+  defaults() {
+    return {
+      enabled: false,
+      model: 'gpt-5.4-mini',
+      customModel: '',
+      apiKey: ''
+    };
+  },
+
+  save(partial) {
+    const prev = this.get();
+    const next = { ...prev, ...partial };
+    const key = String(next.apiKey || '').trim();
+    let enabled = !!next.enabled;
+    if (key.length > 10 && this.validateKey(key) === null && !prev.apiKey) {
+      enabled = true;
+    }
+    localStorage.setItem(ADAM_LLM_KEY, JSON.stringify({
+      enabled,
+      model: next.model || 'gpt-5.4-mini',
+      customModel: String(next.customModel || '').trim(),
+      apiKey: key
+    }));
+    return this.get();
+  },
+
+  clearKey() {
+    const s = this.get();
+    s.apiKey = '';
+    return this.save(s);
+  },
+
+  resolveModel(partial) {
+    const s = { ...this.get(), ...partial };
+    if (s.model === 'custom') {
+      const custom = String(s.customModel || '').trim();
+      return custom || 'gpt-4o-mini';
+    }
+    return s.model || 'gpt-5.4-mini';
+  },
+
+  isUsable() {
+    const s = this.get();
+    return s.enabled && s.apiKey.length > 10;
+  },
+
+  modelLabel(id) {
+    if (id === 'custom') {
+      const custom = this.get().customModel;
+      return custom ? `Custom (${custom})` : 'Custom model';
+    }
+    return ADAM_GPT_MODELS.find(m => m.id === id)?.label || id;
+  },
+
+  validateKey(key) {
+    const k = String(key || '').trim();
+    if (k.length < 10) return 'Paste your full OpenAI API key (starts with sk-…).';
+    if (/^xai-/i.test(k)) {
+      return 'That is a Grok/xAI key — Adam needs OpenAI from platform.openai.com/api-keys';
+    }
+    if (!/^sk-/i.test(k)) {
+      return 'OpenAI keys start with sk- — not a ChatGPT login password.';
+    }
+    return null;
+  },
+
+  populateModelSelect() {
+    const sel = document.getElementById('llm-model');
+    if (!sel || sel.dataset.populated === '1') return;
+    const groups = [...new Set(ADAM_GPT_MODELS.map(m => m.group))];
+    sel.innerHTML = '';
+    groups.forEach(group => {
+      const og = document.createElement('optgroup');
+      og.label = group;
+      ADAM_GPT_MODELS.filter(m => m.group === group).forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.label;
+        og.appendChild(opt);
+      });
+      sel.appendChild(og);
+    });
+    sel.dataset.populated = '1';
+  },
+
+  syncCustomModelVisibility() {
+    const wrap = document.getElementById('llm-custom-model-wrap');
+    const isCustom = document.getElementById('llm-model')?.value === 'custom';
+    if (wrap) wrap.classList.toggle('hidden', !isCustom);
+  },
+
+  readForm() {
+    return {
+      enabled: !!document.getElementById('llm-enabled')?.checked,
+      model: document.getElementById('llm-model')?.value || 'gpt-5.4-mini',
+      customModel: document.getElementById('llm-model-custom')?.value?.trim() || '',
+      apiKey: document.getElementById('llm-api-key')?.value?.trim() || ''
+    };
+  },
+
+  saveFromForm() {
+    const err = document.getElementById('settings-llm-error');
+    const form = this.readForm();
+    if (form.enabled) {
+      const keyErr = this.validateKey(form.apiKey);
+      if (keyErr) {
+        if (err) {
+          err.textContent = keyErr;
+          err.classList.remove('hidden');
+        }
+        return { saved: false, error: keyErr };
+      }
+      if (form.model === 'custom' && !form.customModel) {
+        const msg = 'Type a model ID (e.g. gpt-5.4-mini) or pick a preset.';
+        if (err) {
+          err.textContent = msg;
+          err.classList.remove('hidden');
+        }
+        return { saved: false, error: msg };
+      }
+    }
+    if (err) err.classList.add('hidden');
+    this.save(form);
+    this.initSettingsUi();
+    return { saved: true };
+  },
+
+  initSettingsUi() {
+    this.populateModelSelect();
+    const s = this.get();
+    const en = document.getElementById('llm-enabled');
+    const model = document.getElementById('llm-model');
+    const custom = document.getElementById('llm-model-custom');
+    const key = document.getElementById('llm-api-key');
+    const status = document.getElementById('llm-status');
+    if (en) en.checked = s.enabled;
+    if (model) {
+      const known = ADAM_GPT_MODELS.some(m => m.id === s.model);
+      model.value = known ? s.model : 'custom';
+    }
+    if (custom) custom.value = s.customModel || (ADAM_GPT_MODELS.some(m => m.id === s.model) ? '' : s.model);
+    if (key) key.value = s.apiKey;
+    this.syncCustomModelVisibility();
+    if (status) {
+      if (!s.apiKey) {
+        status.textContent = 'Rule-based bot only — add an OpenAI key to enable GPT.';
+      } else if (s.enabled) {
+        status.textContent = `GPT on: ${this.modelLabel(s.model === 'custom' ? 'custom' : s.model)}. Falls back to rules if the API fails.`;
+      } else {
+        status.textContent = 'API key saved — turn on GPT and click Test connection.';
+      }
+    }
+  },
+
+  bindSettingsUi() {
+    document.getElementById('llm-model')?.addEventListener('change', () => this.syncCustomModelVisibility());
+
+    document.getElementById('settings-save-llm')?.addEventListener('click', () => {
+      const err = document.getElementById('settings-llm-error');
+      const form = this.readForm();
+      const keyErr = form.enabled ? this.validateKey(form.apiKey) : null;
+      if (keyErr) {
+        if (err) {
+          err.textContent = keyErr;
+          err.classList.remove('hidden');
+        }
+        return;
+      }
+      if (form.model === 'custom' && !form.customModel) {
+        if (err) {
+          err.textContent = 'Type a model ID (e.g. gpt-5.4-mini) or pick a preset.';
+          err.classList.remove('hidden');
+        }
+        return;
+      }
+      if (err) err.classList.add('hidden');
+      this.save(form);
+      this.initSettingsUi();
+    });
+
+    document.getElementById('settings-test-llm')?.addEventListener('click', async () => {
+      const err = document.getElementById('settings-llm-error');
+      const status = document.getElementById('llm-status');
+      const form = this.readForm();
+      const keyErr = this.validateKey(form.apiKey);
+      if (keyErr) {
+        if (err) {
+          err.textContent = keyErr;
+          err.classList.remove('hidden');
+        }
+        return;
+      }
+      if (form.model === 'custom' && !form.customModel) {
+        if (err) {
+          err.textContent = 'Type a model ID or pick a preset from the list.';
+          err.classList.remove('hidden');
+        }
+        return;
+      }
+      if (err) err.classList.add('hidden');
+      if (status) status.textContent = 'Testing GPT connection…';
+      const btn = document.getElementById('settings-test-llm');
+      if (btn) btn.disabled = true;
+      try {
+        if (typeof adamLlm?.testConnection !== 'function') throw new Error('GPT module not loaded');
+        const result = await adamLlm.testConnection(form);
+        const label = this.modelLabel(result.modelUsed === form.customModel ? 'custom' : form.model);
+        if (status) {
+          status.textContent = `GPT connected — ${label} (${result.api || 'openai'}). Reply: "${(result.reply || 'OK').slice(0, 50)}". Now click Save.`;
+        }
+      } catch (e) {
+        const msg = typeof adamLlm?._friendlyError === 'function'
+          ? adamLlm._friendlyError(e)
+          : String(e?.message || e);
+        if (status) status.textContent = `GPT test failed — ${msg}`;
+        if (err) {
+          err.textContent = msg;
+          err.classList.remove('hidden');
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+
+    document.getElementById('settings-clear-llm-key')?.addEventListener('click', () => {
+      this.clearKey();
+      const keyEl = document.getElementById('llm-api-key');
+      if (keyEl) keyEl.value = '';
+      this.initSettingsUi();
+    });
+  }
+};
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.ADAM_GPT_MODELS = ADAM_GPT_MODELS;
+  globalThis.ADAM_GPT_TEST_FALLBACKS = ADAM_GPT_TEST_FALLBACKS;
+  globalThis.adamLlmSettings = adamLlmSettings;
+}
