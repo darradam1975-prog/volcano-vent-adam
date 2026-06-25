@@ -36,3 +36,8 @@
   for = "/share.html"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/s/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
