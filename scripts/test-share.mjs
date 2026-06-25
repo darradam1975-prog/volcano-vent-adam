@@ -1,4 +1,4 @@
-import { sanitizeShareId, sanitizeSharePayload, generateShareId } from '../netlify/functions/share.mjs';
+import { sanitizeShareId, sanitizeSharePayload, generateShareId } from '../cloudflare/share.mjs';
 
 let ok = 0;
 let total = 0;

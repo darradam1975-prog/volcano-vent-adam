@@ -5,11 +5,8 @@ const adamShare = {
   _lastUrl: '',
 
   endpoint() {
-    if (typeof adamSite !== 'undefined' && !adamSite.hasCloudBackend) return null;
-    if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
-      return 'https://volcano-vent-adam.netlify.app/.netlify/functions/share';
-    }
-    return '/.netlify/functions/share';
+    if (typeof adamSite !== 'undefined') return adamSite.functionUrl('share');
+    return null;
   },
 
   siteOrigin() {
@@ -26,8 +23,7 @@ const adamShare = {
   },
 
   readEndpoint() {
-    if (this.endpoint()) return this.endpoint();
-    return 'https://volcano-vent-adam.netlify.app/.netlify/functions/share';
+    return this.endpoint();
   },
 
   conversationSnapshot(conv) {
@@ -49,7 +45,7 @@ const adamShare = {
     const endpoint = this.endpoint();
     if (!endpoint) {
       throw new Error(typeof adamSite !== 'undefined'
-        ? 'Public share links need the Netlify cloud backend. On GitHub Pages, use Export bundle in Settings to copy chats.'
+        ? 'Public share links need the Cloudflare Worker (see cloudflare/README.md). Or use Export bundle in Settings.'
         : 'Share cloud backend not available');
     }
 

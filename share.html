@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=60">
+  <link rel="stylesheet" href="css/styles.css?v=62">
 </head>
 <body class="share-page">
   <div class="app-shell share-shell">
@@ -45,7 +45,8 @@
     </div>
   </div>
 
-  <script src="js/site-config.js?v=60"></script>
+  <script src="js/cloud-config.js?v=62"></script>
+  <script src="js/site-config.js?v=62"></script>
   <script>
     function formatMarkdown(text) {
       return String(text || '')
@@ -67,10 +68,12 @@
     }
 
     function shareReadEndpoint(shareId) {
-      const base = typeof adamSite !== 'undefined' && adamSite.hasCloudBackend
-        ? window.location.origin
-        : 'https://volcano-vent-adam.netlify.app';
-      return `${base}/.netlify/functions/share?shareId=${encodeURIComponent(shareId)}&_=${Date.now()}`;
+      const endpoint = typeof adamSite !== 'undefined' ? adamSite.functionUrl('share') : null;
+      if (!endpoint) {
+        throw new Error('Share API not configured — set ADAM_CLOUD_API_BASE in js/cloud-config.js');
+      }
+      const sep = endpoint.includes('?') ? '&' : '?';
+      return `${endpoint}${sep}shareId=${encodeURIComponent(shareId)}&_=${Date.now()}`;
     }
 
     function renderMessage(role, text, source) {

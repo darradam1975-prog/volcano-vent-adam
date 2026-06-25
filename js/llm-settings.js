@@ -248,7 +248,9 @@ const adamLlmSettings = {
     if (steps) steps.classList.toggle('hidden', true);
     if (status) {
       if (typeof adamSite !== 'undefined' && !adamSite.hasCloudBackend) {
-        status.textContent = 'Rule-based bot works here. GPT proxy needs Netlify hosting — not available on GitHub Pages.';
+        status.textContent = typeof adamSite !== 'undefined' && adamSite.isGitHubPages
+          ? 'Rule-based bot works here. For GPT, deploy the Cloudflare Worker and set ADAM_CLOUD_API_BASE in js/cloud-config.js.'
+          : 'Rule-based bot works here. GPT proxy needs a cloud backend — see cloudflare/README.md.';
       } else if (!s.apiKey) {
         status.textContent = 'GPT not set up — follow the steps below: sign in at OpenAI, add billing credits, create an sk- key, then Test connection and Save.';
       } else if (s.enabled) {

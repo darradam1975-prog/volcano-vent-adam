@@ -366,11 +366,8 @@ const adamConversations = {
   },
 
   syncEndpoint() {
-    if (typeof adamSite !== 'undefined' && !adamSite.hasCloudBackend) return null;
-    if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
-      return 'https://volcano-vent-adam.netlify.app/.netlify/functions/sync';
-    }
-    return '/.netlify/functions/sync';
+    if (typeof adamSite !== 'undefined') return adamSite.functionUrl('sync');
+    return null;
   },
 
   _scheduleCloudPush() {

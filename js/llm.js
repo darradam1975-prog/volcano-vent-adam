@@ -141,11 +141,11 @@ const adamLlm = {
   },
 
   chatEndpoint() {
-    if (typeof adamSite !== 'undefined' && !adamSite.hasCloudBackend) return null;
-    if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
-      return 'https://volcano-vent-adam.netlify.app/.netlify/functions/chat';
+    if (typeof adamSite !== 'undefined') {
+      const url = adamSite.functionUrl('chat');
+      if (url) return url;
     }
-    return '/.netlify/functions/chat';
+    return null;
   },
 
   async _requestChat(model, apiKey, messages) {
@@ -194,7 +194,7 @@ const adamLlm = {
       return 'OpenAI rate limit — wait a moment and try again';
     }
     if (/failed to fetch|network|load failed/i.test(raw)) {
-      return 'network error — check connection and use volcano-vent-adam.netlify.app';
+      return 'network error — check connection and ADAM_CLOUD_API_BASE in js/cloud-config.js';
     }
     return raw.slice(0, 160);
   },

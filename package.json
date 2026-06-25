@@ -4,6 +4,8 @@
   "scripts": {
     "start": "npx --yes serve . -l 8765",
     "preview": "npx --yes serve . -l 8765",
+    "worker:deploy": "npx --yes wrangler deploy",
+    "worker:dev": "npx --yes wrangler dev",
     "test": "node scripts/test-adam.mjs && node scripts/test-sync-merge.mjs && node scripts/test-share.mjs && node scripts/test-share-view.mjs && node scripts/test-site-config.mjs"
   },
   "dependencies": {

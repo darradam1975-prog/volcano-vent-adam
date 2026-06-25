@@ -1,5 +1,5 @@
 /**
- * Hosting detection — GitHub Pages vs Netlify (cloud features).
+ * Hosting detection — GitHub Pages + optional Cloudflare Worker API.
  */
 const adamSite = {
   get basePath() {
@@ -20,9 +20,32 @@ const adamSite = {
     return typeof window !== 'undefined' && /netlify\.app$/i.test(window.location.hostname);
   },
 
+  /** Worker base URL from js/cloud-config.js (no trailing slash). */
+  get cloudApiBase() {
+    const fromConfig = typeof ADAM_CLOUD_API_BASE !== 'undefined'
+      ? String(ADAM_CLOUD_API_BASE || '').trim()
+      : '';
+    if (fromConfig) return fromConfig.replace(/\/$/, '');
+    return '';
+  },
+
   /** OpenAI proxy, cloud sync, public share links */
   get hasCloudBackend() {
-    return this.isNetlify;
+    return this.isNetlify || !!this.cloudApiBase;
+  },
+
+  /**
+   * Backend route for chat | sync | share.
+   * Netlify: same-origin /.netlify/functions/{name}
+   * GitHub Pages + Worker: {ADAM_CLOUD_API_BASE}/{name}
+   */
+  functionUrl(name) {
+    const fn = String(name || '').replace(/^\//, '');
+    if (!fn) return null;
+    if (this.isNetlify) return `/.netlify/functions/${fn}`;
+    const base = this.cloudApiBase;
+    if (!base) return null;
+    return `${base}/${fn}`;
   },
 
   homeUrl() {
@@ -37,8 +60,11 @@ const adamSite = {
   },
 
   cloudUnavailableMessage() {
+    if (this.isGitHubPages && !this.cloudApiBase) {
+      return 'GPT needs the Cloudflare Worker API — set ADAM_CLOUD_API_BASE in js/cloud-config.js (see cloudflare/README.md). Rule-based Adam works fully without it.';
+    }
     if (this.isGitHubPages) {
-      return 'Cloud features (GPT proxy, sync, share links) are not on GitHub Pages. Rule-based Adam works fully. Run locally with preview.bat / npm start — or use the rule-based bot here.';
+      return 'Cloud API unreachable — check ADAM_CLOUD_API_BASE in js/cloud-config.js. Rule-based Adam still works.';
     }
     return 'Cloud backend unavailable — rule-based bot still works. Use Export / Import for sync.';
   }

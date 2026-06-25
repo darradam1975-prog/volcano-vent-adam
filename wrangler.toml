@@ -1,0 +1,13 @@
+name = "volcano-vent-adam-api"
+main = "cloudflare/worker.mjs"
+compatibility_date = "2024-08-01"
+
+# Optional: public GitHub Pages URL — share links point here after publish.
+# [vars]
+# ADAM_SITE_BASE = "https://darradam1975-prog.github.io/volcano-vent-adam"
+
+# Create KV once: npx wrangler kv namespace create ADAM_KV
+# Then paste the id below (enables cloud sync + share links).
+# [[kv_namespaces]]
+# binding = "ADAM_KV"
+# id = "YOUR_KV_NAMESPACE_ID"

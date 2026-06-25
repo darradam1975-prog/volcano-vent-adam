@@ -14,8 +14,9 @@ function check(label, pass) {
 }
 
 check('relative css path', /href="css\/styles\.css/.test(html));
+check('cloud-config script', /js\/cloud-config\.js/.test(html));
 check('site-config script', /js\/site-config\.js/.test(html));
-check('inline fetch api', /\/\.netlify\/functions\/share/.test(html));
+check('worker share endpoint', /functionUrl\('share'\)/.test(html));
 check('no relative js share', !/src="js\/share\.js/.test(html));
 check('finally hides loading', /finally/.test(html) && /loading.*hidden/.test(html));
 check('share id from path', /indexOf\('s'\)/.test(html));

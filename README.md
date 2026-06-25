@@ -20,19 +20,25 @@ No install required beyond Node.js — `npm start` uses `npx serve`.
 
 ## What works where
 
-| Feature | GitHub Pages | Local (`npm start` / `preview.bat`) |
-|---------|--------------|-------------------------------------|
-| Rule-based Adam (full guide) | Yes | Yes |
-| Teach mode, lore, pretend-bet rules | Yes | Yes |
-| Conversation history (this device) | Yes | Yes |
-| Export / Import chat bundle | Yes | Yes |
-| OpenAI GPT proxy | No | No* |
-| Cloud sync | No | No* |
-| Create new share links | No | No* |
+| Feature | GitHub Pages | GitHub Pages + [Cloudflare Worker](cloudflare/README.md) | Local (`npm start`) |
+|---------|--------------|----------------------------------------------------------|---------------------|
+| Rule-based Adam (full guide) | Yes | Yes | Yes |
+| Teach mode, lore, pretend-bet rules | Yes | Yes | Yes |
+| Conversation history (this device) | Yes | Yes | Yes |
+| Export / Import chat bundle | Yes | Yes | Yes |
+| OpenAI GPT proxy (your API key) | No | **Yes** | Yes* |
+| Cloud sync | No | Yes** | No* |
+| Create new share links | No | Yes** | No* |
 
-\*GPT, cloud sync, and creating share links need a Netlify-style backend. The **rule-based bot is the main experience** on GitHub Pages and locally.
+\*Local: set `ADAM_CLOUD_API_BASE` in `js/cloud-config.js` to your Worker URL (or `http://localhost:8787` during `npm run worker:dev`).
 
-Old share links may still load via the legacy Netlify read API.
+\*\*Sync and share need a Cloudflare KV namespace on the Worker (optional; GPT `/chat` works without KV).
+
+### Enable GPT on GitHub Pages
+
+1. Deploy the Worker: `npm run worker:deploy` (see [cloudflare/README.md](cloudflare/README.md))
+2. Paste the Worker URL into `js/cloud-config.js` → `ADAM_CLOUD_API_BASE`
+3. Push to `main` — GitHub Pages picks up the config; paste your OpenAI key in **Settings**
 
 ## What it does
 
@@ -70,7 +76,9 @@ If the live link 404s: open **Settings → Pages** on the repo and confirm **Sou
 | `index.html` | App shell |
 | `preview.bat` | One-click local launch (Windows) |
 | `js/adam.js` | Rule-based bot logic |
-| `js/site-config.js` | GitHub Pages vs Netlify detection |
+| `js/cloud-config.js` | Cloudflare Worker URL (enables GPT on GitHub Pages) |
+| `js/site-config.js` | Hosting + API routing |
+| `cloudflare/` | Worker: `/chat`, `/sync`, `/share` |
 | `js/rules.js` | Canonical rules + lore |
 
 ## Privacy
