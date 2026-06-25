@@ -36,6 +36,75 @@ check('ADAM_SOURCE has full name', /Adam The Volcano Vent Bot/.test(ADAM_SOURCE)
 check('full rules 6 dice', /6.*d6|6 standard/i.test(adam.respond('full rules')));
 check('countdown 6 to 1', /6.*5.*4|countdown/i.test(adam.respond('how does the countdown work?')));
 check('lucky charm', /lucky charm/i.test(adam.respond('what is lucky charm?')));
+check('lucky charm overview menu', /quick overview|how do I choose/i.test(adam.respond('what is lucky charm?')));
+check('lucky charm numbers distinct', () => {
+  const nums = adam.respond('what numbers can a lucky charm be?');
+  const choose = adam.respond('how do I choose my lucky charm?');
+  return /Lucky charm numbers: 1 through 6/i.test(nums)
+    && /How to choose your lucky charm/i.test(choose)
+    && nums.trim() !== choose.trim();
+});
+check('lucky charm teach mode distinct', () => {
+  adam.teachMode = true;
+  const qs = [
+    ['what is a lucky charm?', /quick overview/i],
+    ['can my lucky charm be my favorite number?', /^(\*\*)?Yes/i],
+    ['how do I choose my lucky charm?', /How to choose your lucky charm/i],
+    ['who gets the dice after a lucky charm save?', /Who gets the 6 dice/i]
+  ];
+  const seen = new Set();
+  for (const [q, re] of qs) {
+    adam.conversationHistory = [];
+    const r = adam.respond(q).trim();
+    if (!re.test(r)) return false;
+    seen.add(r.slice(0, 70));
+  }
+  adam.teachMode = false;
+  return seen.size === qs.length;
+});
+check('lucky charm gpt preserve teach snippets', () => {
+  adam.teachMode = true;
+  const reply = adam.respond('what is a lucky charm?');
+  adam.teachMode = false;
+  return typeof adamLlm !== 'undefined'
+    && adamLlm._shouldPreserveRuleReply('what is a lucky charm?', reply)
+    && adamLlm.shouldEnhance('what is a lucky charm?', reply) === false;
+});
+check('lucky charm topics distinct', () => {
+  const qs = [
+    ['what is a lucky charm?', /quick overview/i],
+    ['can my lucky charm be my favorite number?', /^(\*\*)?Yes/i],
+    ['what numbers can a lucky charm be?', /Lucky charm numbers/i],
+    ['who gets the dice after a lucky charm save?', /Who gets the 6 dice/i],
+    ['what happens if I roll my lucky charm on the vent?', /Vent rescue roll/i],
+    ['how do you keep track of lucky charm?', /Keeping track/i],
+    ['can two players have the same lucky charm?', /Same lucky charm/i]
+  ];
+  const seen = new Set();
+  for (const [q, re] of qs) {
+    adam.conversationHistory = [];
+    const r = adam.respond(q).trim();
+    if (!re.test(r)) return false;
+    seen.add(r.slice(0, 70));
+  }
+  return seen.size === qs.length;
+});
+check('how choose lucky charm', /1\s+through\s+6|favorite number|before the first roll/i.test(adam.respond('how do I choose my lucky charm?')));
+check('same favorite number regular group', /regular group|every game night|favorite number/i.test(adam.respond('can my lucky charm always be the same favorite number with our regular group?')));
+check('can lucky charm be favorite number distinct', () => {
+  const fav = adam.respond('can my lucky charm be my favorite number');
+  const what = adam.respond('what is lucky charm?');
+  return /^(\*\*)?Yes/i.test(fav.trim())
+    && /How to choose your lucky charm/i.test(fav) === false
+    && fav.trim() !== what.trim()
+    && /1\s+through\s+6/i.test(fav);
+});
+check('what numbers lucky charm', /1\s+through\s+6|Must be/i.test(adam.respond('what numbers can a lucky charm be?')));
+check('lucky charm table joke', /Table joke:/i.test(adam.respond('what is lucky charm?')));
+check('table joke request', /Volcano Vent table joke/i.test(adam.respond('table joke')));
+check('table joke vent topic', /Volcano Vent table joke.*Vent/i.test(adam.respond('table joke about the vent')));
+check('another table joke', /Volcano Vent table joke/i.test(adam.respond('another table joke')));
+check('vent answer table joke', /Table joke:/i.test(adam.respond('what happens on the vent?')));
 check('lucky charm on paper', /paper|writes/i.test(adam.respond('what is lucky charm?')));
 check('roll lucky charm clear', /safe|no token|rescue roll/i.test(adam.respond('what happens if you roll your lucky charm')));
 check('roll lucky charm vent', /safe|no token lost/i.test(adam.respond('I rolled my lucky charm on the vent rescue')));
@@ -216,6 +285,42 @@ check('how many rounds not turn flow', !/Turn flow each round/i.test(adam.respon
 localStorage.setItem('adam-birthday', JSON.stringify({ month: 1, day: 1, year: 1990 }));
 check('how do antes work', /When to pay|resets to 6|Vent tokens|House Rule 1/i.test(adam.respond('how do antes work with buttons and beads')));
 check('when pay ante', /resets to 6|do not.*every roll|tribute 1/i.test(adam.respond('when do we pay antes')));
+check('pot size one ante per reset', /no fixed pot|1 craft token per player|per reset|grows/i.test(adam.respond('what is the pot size one ante per reset')));
+check('compound vent and lucky charm', () => {
+  const r = adam.respond('what is the vent and what is a lucky charm?');
+  return /Two questions|quick answers/i.test(r) && /Vent/i.test(r) && /lucky charm/i.test(r);
+});
+check('compound dice and players', () => {
+  const r = adam.respond('how many dice do we use and how many players?');
+  return /Two questions/i.test(r) && /6|dice/i.test(r) && /player/i.test(r);
+});
+check('buttons and beads not split', () => {
+  const r = adam.respond('how do buttons and beads work?');
+  return !/Two questions/i.test(r) && /pretend|antes|Vent tokens/i.test(r);
+});
+check('compound mixed betting age', () => {
+  localStorage.removeItem('adam-birthday');
+  localStorage.removeItem('adam-age-verified');
+  const r = adam.respond('what is the vent and how do antes work?');
+  return /Two questions/i.test(r) && /Vent/i.test(r) && /birthday|18/i.test(r);
+});
+localStorage.setItem('adam-birthday', JSON.stringify({ month: 1, day: 1, year: 1990 }));
+check('compound lucky charm rules vs lore', () => {
+  const r = adam.respond('what is a lucky charm and what is lucky charm lore?');
+  return /Two questions/i.test(r)
+    && /Lucky charm \(rules\)/i.test(r)
+    && /Lucky charm lore/i.test(r)
+    && /writes theirs on a piece of paper/i.test(r)
+    && /pocket charm/i.test(r);
+});
+check('compound vent rules vs lore', () => {
+  const r = adam.respond('what is the vent and why is it called the vent?');
+  return /Two questions/i.test(r)
+    && /Vent \(rules\)/i.test(r)
+    && /Why "the Vent"\? \(lore\)/i.test(r)
+    && /rescue reroll/i.test(r)
+    && /throat of the mountain/i.test(r);
+});
 check('antes instructions clear', /Before play|shared bowl|craft bead/i.test(adam.respond('clear instructions on how antes work')));
 check('house rules concise not wall', adam.respond('house rules for pretend bets').length < 1200);
 check('no gold beads', /not.*gold|craft|skip gold/i.test(adam.respond('can I use gold beads for the pot?')));

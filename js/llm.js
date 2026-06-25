@@ -6,12 +6,21 @@ const adamLlm = {
     return typeof adamLlmSettings !== 'undefined' && adamLlmSettings.isUsable();
   },
 
+  _shouldPreserveRuleReply(message, ruleReply) {
+    const m = String(message || '').toLowerCase();
+    if (!/lucky\s*charm/.test(m)) return false;
+    if (!ruleReply || /^I'm a \*\*rough guide\*\*/.test(ruleReply)) return false;
+    return true;
+  },
+
   shouldEnhance(message, ruleReply) {
     if (!this.isEnabled()) return false;
     const m = String(message || '').trim().toLowerCase();
     if (!m) return false;
+    if (/lucky\s*charm/.test(m) && ruleReply && !/^I'm a \*\*rough guide\*\*/.test(ruleReply)) return false;
     if (/full\s+rules|quote\s+the\s+rules|rule\s+lecture|^rule\s*book$/.test(m)) return false;
     if (this._isChitChat(m)) return false;
+    if (this._shouldPreserveRuleReply(m, ruleReply)) return false;
     if (ruleReply && /^I'm a \*\*rough guide\*\*/.test(ruleReply)) return true;
     if (typeof adam !== 'undefined' && typeof adam._isLikelyOffTopic === 'function' && adam._isLikelyOffTopic(m)) {
       return true;

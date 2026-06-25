@@ -40,7 +40,9 @@ const adam = {
     if (typeof adamLlm !== 'undefined' && adamLlm.isEnabled()) {
       const roughGuide = /^I'm a \*\*rough guide\*\*/.test(reply);
       const offTopic = this._isLikelyOffTopic(m);
-      if (roughGuide || offTopic) {
+      if (/lucky\s*charm/i.test(m) && !roughGuide) {
+        // Keep topic-specific charm answers — skip GPT rewrite.
+      } else if (roughGuide || offTopic) {
         reply = await adamLlm.completeOffTopic(m, reply, this.conversationHistory);
       } else if (adamLlm.shouldEnhance(m, reply)) {
         reply = await adamLlm.complete(m, reply, this.conversationHistory);
@@ -76,15 +78,19 @@ const adam = {
     if (this._isGamblingHelpQuestion(m.toLowerCase())) {
       return this._gamblingHelp();
     }
-    if (adamAgeVerifier.messageRequiresBettingAge(m)) {
-      if (!adamAgeVerifier.hasBirthday()) {
-        adamAgeVerifier.requestVerification(() => {
-          addMessage('assistant', this._handleBetting(m), ADAM_SOURCE);
-          adamVoice?.speakLast?.();
-        });
-        return adamAgeVerifier.bettingBlockedReply() + '\n\nOpening birthday picker now…';
+    if (!adamAgeVerifier.canDiscussBetting() && adamAgeVerifier.messageRequiresBettingAge(m)) {
+      const parts = this._splitCompoundQuestions(m);
+      const hasOpenPart = parts && parts.some(p => !adamAgeVerifier.messageRequiresBettingAge(p));
+      if (!hasOpenPart) {
+        if (!adamAgeVerifier.hasBirthday()) {
+          adamAgeVerifier.requestVerification(() => {
+            addMessage('assistant', this._handleBetting(m), ADAM_SOURCE);
+            adamVoice?.speakLast?.();
+          });
+          return adamAgeVerifier.bettingBlockedReply() + '\n\nOpening birthday picker now…';
+        }
+        return adamAgeVerifier.bettingBlockedReply();
       }
-      return adamAgeVerifier.bettingBlockedReply();
     }
     return this._route(m);
   },
@@ -102,6 +108,233 @@ const adam = {
     if (inferred === 'betting') {
       this.lastBettingSubtopic = this._inferBettingSubtopic(assistantReply, userMessage);
     }
+  },
+
+  _questionLeadRe() {
+    return /^(?:what|how|when|who|where|why|can|could|should|do|does|is|are|tell\s+me|explain)\b/i;
+  },
+
+  _looksLikeGameQuestion(segment) {
+    const s = String(segment || '').trim();
+    if (s.length < 6) return false;
+    const lower = s.toLowerCase();
+    if (/^(?:and|also|plus|yes|no|ok|sure|thanks)\b/.test(lower)) return false;
+    if (/\?/.test(s)) return true;
+    return this._questionLeadRe().test(s);
+  },
+
+  _extractQuestionSegments(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return [];
+
+    if (text.includes('?')) {
+      const chunks = text.split('?').map(c => c.trim()).filter(Boolean);
+      if (chunks.length >= 2) {
+        const endsWithQ = text.trimEnd().endsWith('?');
+        return chunks.map((chunk, idx) => {
+          const needsQ = idx < chunks.length - 1 || endsWithQ;
+          const seg = needsQ ? `${chunk}?` : chunk;
+          return seg.replace(/^(?:and|also|plus)\s+/i, '').trim();
+        }).filter(Boolean);
+      }
+    }
+
+    const conj = /\s+(?:and|also|plus)\s+(?=(?:what|how|when|who|where|why|can|could|should|do|does|is|are|tell\s+me|explain)\b)/i;
+    if (!conj.test(text)) return [text];
+
+    const splits = [];
+    let rest = text;
+    while (conj.test(rest)) {
+      const idx = rest.search(conj);
+      const left = rest.slice(0, idx).trim().replace(/[?,]\s*$/, '').trim();
+      if (left) splits.push(left);
+      rest = rest.slice(idx).replace(/^\s*(?:and|also|plus)\s+/i, '').trim();
+    }
+    if (rest) splits.push(rest.replace(/\?$/,'').trim());
+    return splits.length >= 2 ? splits : [text];
+  },
+
+  _splitCompoundQuestions(message) {
+    const raw = String(message || '').trim();
+    if (!raw || raw.length < 18) return null;
+    const lower = raw.toLowerCase();
+    if (/walk\s+(?:me\s+)?through|step\s+by\s+step|full\s+rules|quote\s+the\s+rules|rule\s*book/.test(lower)) return null;
+    if (/\b(?:buttons?\s+and\s+beads?|beads?\s+and\s+buttons?)\b/.test(lower) && !/\?\s*(?:and|also)\s+(?:what|how|when)/.test(lower)) {
+      const multiQ = (raw.match(/\?/g) || []).length >= 2;
+      if (!multiQ) return null;
+    }
+
+    const segments = this._extractQuestionSegments(raw)
+      .map(s => s.replace(/^(?:and|also|plus)\s+/i, '').trim())
+      .filter(s => this._looksLikeGameQuestion(s));
+
+    if (segments.length < 2) return null;
+    return segments.slice(0, 3);
+  },
+
+  _loreLabelForTopic(topic) {
+    const map = {
+      luckyCharm: 'Lucky charm lore',
+      whyVent: 'Why "the Vent"? (lore)',
+      ventEdge: 'Vent edge (lore)',
+      countdown: 'Countdown (lore)',
+      crawling: 'Crawling down (lore)',
+      name: 'Name story (lore)',
+      tokens: 'Tokens & sacrifice (lore)',
+      overview: 'Volcano Vent lore'
+    };
+    return map[topic] || 'Lore';
+  },
+
+  _compoundKind(part) {
+    if (typeof matchLoreTopic === 'function') {
+      const topic = matchLoreTopic(part);
+      if (topic) return `lore:${topic}`;
+    }
+    const s = String(part || '').toLowerCase();
+    if (/lucky\s+charm/.test(s)) return 'rules:luckyCharm';
+    if (/vent/.test(s) && !/prevent|event/.test(s)) return 'rules:vent';
+    if (/countdown|6.*5.*4/.test(s)) return 'rules:countdown';
+    if (/how\s+many\s+dice|\bd6\b/.test(s)) return 'rules:dice';
+    if (/player|people/.test(s)) return 'rules:players';
+    if (/ante|pot|keeper|pretend\s+bet|napkin/.test(s)) return 'rules:betting';
+    if (/\btoken/.test(s)) return 'rules:tokens';
+    return `rules:${s.replace(/\s+/g, ' ').trim().slice(0, 48)}`;
+  },
+
+  _shortLabelForQuestion(question) {
+    const s = String(question || '').toLowerCase().replace(/\?/g, '').trim();
+    if (typeof matchLoreTopic === 'function') {
+      const topic = matchLoreTopic(question);
+      if (topic) return this._loreLabelForTopic(topic);
+    }
+    if (/lucky\s+charm/.test(s)) return 'Lucky charm (rules)';
+    if (/vent/.test(s) && !/prevent|event/.test(s)) return 'The Vent (rules)';
+    if (/countdown|6.*5.*4/.test(s)) return 'Countdown';
+    if (/how\s+many\s+dice|\bd6\b|dice\s+do\s+we/.test(s)) return 'Dice';
+    if (/player|people|how\s+many\s+play/.test(s)) return 'Players';
+    if (/ante|pot\s+size|keeper|house\s+rule|pretend\s+bet|napkin/.test(s)) return 'Pretend bets';
+    if (/\btoken/.test(s)) return 'Vent tokens';
+    if (/win|last.*token|who\s+wins/.test(s)) return 'Winning';
+    if (/scor/.test(s)) return 'Scoring';
+    if (/2[\s-]*2[\s-]*2|sum|add\s+up/.test(s)) return 'Sums (2+2+2)';
+    if (/round|how\s+long|how\s+many\s+cycle/.test(s)) return 'Rounds';
+    const plain = String(question || '').replace(/\*\*/g, '').replace(/\?$/,'').trim();
+    if (plain.length <= 48) {
+      return plain.charAt(0).toUpperCase() + plain.slice(1);
+    }
+    return `${plain.slice(0, 45)}…`;
+  },
+
+  _formatCompoundReply(items) {
+    const n = items.length;
+    const intro = n === 2
+      ? '**Two questions — here are quick answers:**'
+      : `**${n} questions — here are quick answers:**`;
+    let out = `${intro}\n\n`;
+    items.forEach((item, idx) => {
+      out += `**${idx + 1}. ${item.label}**\n${item.answer.trim()}\n\n`;
+    });
+    return out.trim();
+  },
+
+  _compactCompoundAnswer(part, answer) {
+    let out = String(answer || '').trim();
+    const kind = this._compoundKind(part);
+    if (kind === 'rules:luckyCharm') {
+      out = out.replace(/^\*\*Lucky charm:\*\*\s*/i, '');
+    }
+    if (kind === 'rules:vent' && /^\*\*The Vent:\*\*/i.test(out)) {
+      out = out.replace(/^\*\*The Vent:\*\*\s*/i, '');
+    }
+    return out.trim();
+  },
+
+  _routeSingleForCompound(part) {
+    if (typeof matchLoreTopic === 'function' && typeof formatVolcanoVentLoreMarkdown === 'function') {
+      const topic = matchLoreTopic(part);
+      if (topic) return formatVolcanoVentLoreMarkdown(topic, { compound: true });
+    }
+    return this._compactCompoundAnswer(part, this._routeSingle(part));
+  },
+
+  _answerCompoundQuestions(message) {
+    const parts = this._splitCompoundQuestions(message);
+    if (!parts || parts.length < 2) return null;
+
+    const items = [];
+    const seen = new Map();
+    for (const part of parts) {
+      let answer;
+      if (!adamAgeVerifier.canDiscussBetting() && adamAgeVerifier.messageRequiresBettingAge(part)) {
+        answer = adamAgeVerifier.bettingBlockedReply();
+      } else {
+        answer = this._routeSingleForCompound(part);
+      }
+      const kind = this._compoundKind(part);
+      const key = `${kind}::${answer.replace(/\s+/g, ' ').trim()}`;
+      const label = this._shortLabelForQuestion(part);
+      if (seen.has(key)) continue;
+      const item = { label, answer, part };
+      seen.set(key, item);
+      items.push(item);
+    }
+    if (items.length < 2) return null;
+    return this._formatCompoundReply(items);
+  },
+
+  _isTableJokeRequest(m) {
+    return /(?:table\s+joke|another\s+table\s+joke|volcano\s+(?:vent\s+)?joke|tell\s+(?:me\s+)?(?:another\s+)?(?:a\s+)?joke)/.test(m);
+  },
+
+  _inferJokeTopic(m) {
+    const s = String(m || '').toLowerCase();
+    if (/2[\s-]*2[\s-]*2|clever\s+sum|sum/.test(s)) return 'sums';
+    if (/lucky|charm/.test(s)) return 'luckyCharm';
+    if (/rescue/.test(s)) return 'rescue';
+    if (/countdown/.test(s)) return 'countdown';
+    if (/first\s+roll|opening/.test(s)) return 'firstRoll';
+    if (/reset|back\s+to\s+6/.test(s)) return 'reset';
+    if (/token|sacrifice/.test(s)) return 'tokens';
+    if (/win|last\s+player/.test(s)) return 'winning';
+    if (/player|people|group/.test(s)) return 'players';
+    if (/dice/.test(s)) return 'dice';
+    if (/ante|bead|button|bowl|keeper|napkin/.test(s)) return 'betting';
+    if (/vent/.test(s)) return 'vent';
+    return 'general';
+  },
+
+  _withTableJoke(answer, topic, message) {
+    const out = String(answer || '').trim();
+    if (!out || /Table joke:/i.test(out) || out.length > 2200) return out;
+    if (typeof pickVolcanoVentTableJoke !== 'function' || typeof formatTableJokeLine !== 'function') return out;
+    const joke = pickVolcanoVentTableJoke(topic, `${message}::${topic}`);
+    return out + formatTableJokeLine(joke);
+  },
+
+  _tableJoke(m) {
+    const topic = this._inferJokeTopic(m);
+    const seed = `${m}::${this.conversationHistory.length}::joke`;
+    const joke = typeof pickVolcanoVentTableJoke === 'function'
+      ? pickVolcanoVentTableJoke(topic, seed)
+      : 'the volcano isn\'t angry; it\'s just counting.';
+    const labels = {
+      luckyCharm: 'lucky charm',
+      vent: 'the Vent',
+      rescue: 'rescue rolls',
+      countdown: 'countdown',
+      sums: '2+2+2 & sums',
+      tokens: 'tokens',
+      winning: 'winning',
+      players: 'players',
+      dice: 'dice',
+      firstRoll: 'first-roll Vent',
+      reset: 'reset to 6',
+      betting: 'pretend bets',
+      general: 'general'
+    };
+    const label = labels[topic] || 'general';
+    return `**Volcano Vent table joke** (${label}):\n\n"${joke}"\n\nSay **"another table joke"**, **"table joke about the Vent"**, **"table joke about lucky charms"**, or **"table joke about 2+2+2"** — or ask any rules question and I will slip one in when it fits.`;
   },
 
   _route(message) {
@@ -122,14 +355,29 @@ const adam = {
       return typeof formatTeachMenuMarkdown === 'function' ? formatTeachMenuMarkdown() : this._startTeach();
     }
     if (this._isStartTeach(m)) return this._startTeach();
+    if (this._isTableJokeRequest(m)) return this._tableJoke(m);
+    if (/lucky\s*charm/.test(m)) {
+      const charmReply = this._routeLuckyCharm(m);
+      if (charmReply) return charmReply;
+    }
     if (this.teachMode && typeof formatTeachAnswer === 'function') {
       const taught = formatTeachAnswer(message);
       if (taught) return taught;
     }
+    const compound = this._answerCompoundQuestions(message);
+    if (compound) return compound;
+    return this._routeSingle(message);
+  },
+
+  _routeSingle(message) {
+    const m = message.toLowerCase();
+
     if (this._isBettingFollowUp(m)) return this._bettingFollowUp(m);
     if (this._isWhatNext(m)) return this._whatNext();
     if (this._isWho(m)) return this._who();
     if (this._isGptSetupQuestion(m)) return this._gptSetupGuide(m);
+    const charmReply = this._routeLuckyCharm(m);
+    if (charmReply) return charmReply;
     if (this._isLoreQuestion(m)) return this._lore(m);
     if (this._isOtherDiceGameQuestion(m)) return this._otherDiceGameRedirect();
     if (/set\s+birthday|save\s+birthday|my\s+birthday/.test(m)) {
@@ -149,12 +397,9 @@ const adam = {
     if (/how\s+(?:do\s+)?(?:i|we)\s+play|how\s+to\s+play|explain\s+the\s+game/.test(m) && !/full\s+rules/.test(m)) {
       return this._startTeach();
     }
-    if (/same\s+lucky\s+charm|duplicate\s+charm|clever\s+sum|example.*sum|push.?your.?luck|tension|thrill|laughter/.test(m)) return this._walkthroughExtras(m);
+    if (/clever\s+sum|example.*sum|push.?your.?luck|tension|thrill|laughter/.test(m)) return this._walkthroughExtras(m);
     if (/setup|set\s*up|what\s+do\s+i\s+need|materials|equipment/.test(m)) return this._setup();
     if (this._isVentCharmMissConfusionQuestion(m)) return formatVentCharmMissClarificationMarkdown();
-    if (this._isLuckyCharmDiceResetQuestion(m)) return formatLuckyCharmDiceResetMarkdown();
-    if (this._isLuckyCharmRollQuestion(m)) return this._luckyCharmRollOutcome(m);
-    if (this._isLuckyCharmQuestion(m)) return this._luckyCharm(m);
     if (this._isScoringQuestion(m)) return this._scoring();
     if (this._isHowWeDecideQuestion(m)) return formatHowWeDecideMarkdown();
     if (this._isNapkinVoteQuestion(m)) return formatNapkinVoteMarkdown();
@@ -623,6 +868,7 @@ const adam = {
       || /return\s+(?:all|everything)|get\s+(?:my|our)\s+(?:bead|button)/.test(m) && /back|after/.test(m)
       || /(?:real|actual)\s+money/.test(m) && /bead|button|bet|pretend/.test(m)
       || /how\s+much.*(?:bead|button|pot|ante)/.test(m)
+      || /pot\s+size|size\s+of\s+(?:the\s+)?pot|one\s+ante\s+per\s+reset/.test(m)
       || /how\s+(?:do|does)\s+antes?\s+work|what\s+(?:are|is)\s+antes?|explain\s+antes?|instructions?\s+(?:on|for)\s+antes?/.test(m)
       || /what\s+can\s+(?:be|i|we)\s+use\s+for\s+(?:pretend\s+)?bets?/.test(m)
       || /what\s+goes\s+in\s+(?:the\s+)?(?:bowl|pot)/.test(m)
@@ -793,9 +1039,15 @@ const adam = {
 
   _lore(m) {
     const topic = typeof matchLoreTopic === 'function' ? matchLoreTopic(m) : 'overview';
-    return typeof formatVolcanoVentLoreMarkdown === 'function'
+    const base = typeof formatVolcanoVentLoreMarkdown === 'function'
       ? formatVolcanoVentLoreMarkdown(topic || 'overview')
       : VOLCANO_VENT_LORE?.overview || 'Ask about **why the Vent**, the **countdown**, or **volcano vent lore**.';
+    const jokeTopic = topic === 'luckyCharm' ? 'luckyCharm'
+      : topic === 'whyVent' || topic === 'ventEdge' ? 'vent'
+      : topic === 'countdown' ? 'countdown'
+      : topic === 'crawling' ? 'countdown'
+      : 'general';
+    return this._withTableJoke(base, jokeTopic, m);
   },
 
   _isOtherDiceGameQuestion(m) {
@@ -836,6 +1088,8 @@ const adam = {
     out += '• **Full rules** — long version only if you ask\n';
     out += '• **Variants** — paper lives, short game, gentle Vent\n';
     out += '• **Lore** — why the **Vent**, countdown story, crawling down the volcano\n';
+    out += '• **Two questions at once** — e.g. *"what is the Vent and how do lucky charms work?"*\n';
+    out += '• **Table jokes** — say **"table joke"** or **"table joke about the Vent"**\n';
     if (typeof adamLlmSettings !== 'undefined' && adamLlmSettings.isUsable()) {
       out += '• **GPT** — on (plain-English answers)\n';
     } else {
@@ -869,7 +1123,7 @@ const adam = {
 
   _setup() {
     const g = VOLCANO_VENT_GAME;
-    return `**You need:** ${g.dice}; **3 tokens** per player; paper for lucky charms (**1–6**). Pick who goes first, write charms down, and roll all **6 dice** for tribute **6**. **${g.players}** players.\n\nKids → **paper lives**, no pretend bets. Say **"full rules"** for the long version.`;
+    return `**You need:** ${g.dice}; **3 tokens** per player; paper for lucky charms (**1 through 6**). Each player picks a charm at setup (favorite number is fine), writes it down, then roll all **6 dice** for tribute **6**. **${g.players}** players.\n\nKids → **paper lives**, no pretend bets. Say **"full rules"** for the long version.`;
   },
 
   _isVentCharmMissConfusionQuestion(m) {
@@ -893,38 +1147,151 @@ const adam = {
       || /lucky\s*charm.*who\s+(?:gets?|rolls?)/.test(m);
   },
 
+  _classifyLuckyCharmTopic(m) {
+    const s = String(m || '').toLowerCase().trim();
+    if (!/lucky\s*charms?|charm\s*number|escape\s+number/.test(s)) return null;
+    if (/lucky\s+charm.*(?:lore|story|metaphor)|(?:lore|story).*(?:the\s+)?lucky\s+charm|why.*lucky\s+charm/.test(s)) {
+      return 'lore';
+    }
+    if (this._isLuckyCharmDiceResetQuestion(s)) return 'dice_reset';
+    if (this._isLuckyCharmFavoriteQuestion(s)) return 'favorite';
+    if (/same\s+(?:lucky\s+)?charm|duplicate\s+charm|two\s+(?:players|people).*(?:same|share).*charm|can\s+two.*same.*charm/.test(s)) {
+      return 'duplicate';
+    }
+    if (/what\s+numbers?\s+(?:can|could|must)\s+(?:a\s+)?lucky\s+charm|lucky\s+charm.*(?:1\s+through\s+6|one\s+through\s+six)/.test(s)
+      || /only\s+(?:1|one)\s+through\s+6/.test(s) && /lucky\s+charm|charm/.test(s)) {
+      return 'numbers';
+    }
+    if (this._isLuckyCharmChooseQuestion(s)) return 'choose';
+    if (/keep\s+track|remember.*(?:charm|lucky)|write.*paper|on\s+paper/.test(s) && /charm|lucky/.test(s)) {
+      return 'tracking';
+    }
+    if (this._isLuckyCharmRollQuestion(s)
+      || /how\s+(?:does|do)\s+lucky\s+charm\s+work|when\s+(?:does|do)\s+lucky\s+charm/.test(s)) {
+      return 'roll';
+    }
+    if (/what\s+(?:is\s+)?(?:a\s+)?lucky\s+charms?|explain\s+(?:the\s+)?lucky\s+charm|tell\s+me\s+about\s+(?:the\s+)?lucky\s+charms?|^lucky\s+charms?\??$/.test(s)) {
+      return 'overview';
+    }
+    return 'overview';
+  },
+
+  _routeLuckyCharm(m) {
+    const topic = this._classifyLuckyCharmTopic(m);
+    if (!topic) return null;
+    if (topic === 'lore') return this._lore(m);
+    if (topic === 'dice_reset') {
+      return this._withTableJoke(
+        typeof formatLuckyCharmDiceResetMarkdown === 'function' ? formatLuckyCharmDiceResetMarkdown() : '',
+        'luckyCharm',
+        m
+      );
+    }
+    if (topic === 'favorite') return this._luckyCharmFavorite(m);
+    if (topic === 'duplicate') {
+      return this._withTableJoke(
+        typeof formatLuckyCharmDuplicateMarkdown === 'function' ? formatLuckyCharmDuplicateMarkdown() : '',
+        'luckyCharm',
+        m
+      );
+    }
+    if (topic === 'numbers') {
+      return this._withTableJoke(
+        typeof formatLuckyCharmNumbersMarkdown === 'function' ? formatLuckyCharmNumbersMarkdown() : '',
+        'luckyCharm',
+        m
+      );
+    }
+    if (topic === 'choose') return this._luckyCharmChoose(m);
+    if (topic === 'tracking') {
+      return this._withTableJoke(
+        typeof formatLuckyCharmTrackingMarkdown === 'function' ? formatLuckyCharmTrackingMarkdown() : '',
+        'luckyCharm',
+        m
+      );
+    }
+    if (topic === 'roll') return this._luckyCharmRollOutcome(m);
+    if (topic === 'overview') {
+      return this._withTableJoke(
+        typeof formatLuckyCharmOverviewMarkdown === 'function' ? formatLuckyCharmOverviewMarkdown() : this._luckyCharmOverviewFallback(),
+        'luckyCharm',
+        m
+      );
+    }
+    return null;
+  },
+
+  _luckyCharmOverviewFallback() {
+    return '**Lucky charm:** pick **1 through 6** at setup, write on paper, keep all game. Saves you on **Vent** rescue rolls only.';
+  },
+
+  _isLuckyCharmFavoriteQuestion(m) {
+    return /can\s+(?:my|our|your|i|we|the)\s+lucky\s+charm\s+(?:always\s+)?be/.test(m)
+      && /favorit(?:e|ite)\s+number|favorit(?:e|ite)\b/.test(m)
+      || /lucky\s+charm\s+be\s+(?:my|our|your|a)\s+favorit/.test(m)
+      || /be\s+(?:my|our|your)\s+favorit(?:e|ite)\s+number/.test(m) && /lucky\s+charm|charm/.test(m)
+      || /use\s+(?:my\s+)?favorit(?:e|ite)\s+number\s+as\s+(?:my\s+)?lucky\s+charm/.test(m)
+      || /is\s+it\s+ok(?:ay)?.*favorit(?:e|ite)\s+number.*lucky\s+charm/.test(m);
+  },
+
+  _luckyCharmFavorite(m) {
+    const base = typeof formatLuckyCharmFavoriteNumberMarkdown === 'function'
+      ? formatLuckyCharmFavoriteNumberMarkdown()
+      : '**Yes** — your lucky charm can be your favorite number, but it must still be **1 through 6** (a die face).';
+    return this._withTableJoke(base, 'luckyCharm', m);
+  },
+
+  _isLuckyCharmChooseQuestion(m) {
+    if (this._isLuckyCharmFavoriteQuestion(m)) return false;
+    return /how\s+(?:do|does)\s+(?:you|i|we)\s+choose|how\s+to\s+(?:choose|pick)|(?:choose|pick)\s+(?:a\s+)?(?:my\s+|our\s+|your\s+)?lucky\s+charm/.test(m)
+      || /favorite\s+number|favourite\s+number/.test(m) && /lucky\s+charm|charm/.test(m)
+      || /always\s+(?:the\s+)?same\s+(?:lucky\s+charm|number|charm\s+number)/.test(m)
+      || /same\s+number\s+every\s+(?:game|night|time)/.test(m) && /lucky\s+charm|charm/.test(m)
+      || /regular\s+group.*lucky\s+charm|lucky\s+charm.*regular\s+group/.test(m)
+      || /must\s+(?:choose|pick)\s+from/.test(m) && /lucky\s+charm|charm/.test(m);
+  },
+
+  _luckyCharmChoose(m) {
+    const base = typeof formatLuckyCharmChooseMarkdown === 'function'
+      ? formatLuckyCharmChooseMarkdown()
+      : 'Pick **1 through 6** at setup before the first roll. Favorite numbers are fine — regular groups often reuse the same charm every game night.';
+    return this._withTableJoke(base, 'luckyCharm', m);
+  },
+
   _isLuckyCharmRollQuestion(m) {
     if (this._isLuckyCharmDiceResetQuestion(m)) return false;
-    if (/keep\s+track|write|paper|remember|pick|choose|what\s+is/.test(m)) return false;
+    if (this._isLuckyCharmFavoriteQuestion(m) || this._isLuckyCharmChooseQuestion(m)) return false;
+    if (/keep\s+track|write|paper|remember|pick|choose|favorite|favourite|what\s+is/.test(m)) return false;
     return (
       /what\s+(?:happens|if).*(?:lucky\s*charm|my\s*charm)/.test(m)
       || /(?:roll|rolled|rolling|hit|hits|hitting|get|got|show|shows|land|landed).*(?:lucky\s*charm|my\s*charm)/.test(m)
       || /(?:lucky\s*charm|my\s*charm).*(?:roll|rolled|hit|show|land|rescue|save)/.test(m)
       || /(?:lucky\s*charm|my\s*charm).*(?:on\s+)?(?:the\s+)?(?:vent|rescue)/.test(m)
+      || /how\s+(?:does|do)\s+lucky\s+charm\s+work|when\s+(?:does|do)\s+lucky\s+charm\s+(?:matter|help|save)/.test(m)
     );
   },
 
   _luckyCharmRollOutcome(m) {
     if (this._isVentCharmMissConfusionQuestion(m)) {
-      return formatVentCharmMissClarificationMarkdown();
+      return this._withTableJoke(formatVentCharmMissClarificationMarkdown(), 'rescue', m);
     }
     const onVent = /vent|rescue|miss(?:ed)?/.test(m);
     if (onVent) {
-      return '**On a Vent rescue roll** (the **second** roll after a miss), if **your** lucky charm appears on **any** die:\n\n• **No token lost**\n• All **6 dice** return to the **shared pool**\n• Countdown **resets to 6**\n• **Next player** rolls all **6** — you do **not** roll again\n\nCharm on the **miss roll** does **not** auto-save — you must hit it on the **rescue roll** (unless it paid the tribute and you did not miss).';
+      return this._withTableJoke(
+        '**On a Vent rescue roll** (the **second** roll after a miss), if **your** lucky charm appears on **any** die:\n\n• **No token lost**\n• All **6 dice** return to the **shared pool**\n• Countdown **resets to 6**\n• **Next player** rolls all **6** — you do **not** roll again\n\nCharm on the **miss roll** does **not** auto-save — you must hit it on the **rescue roll** (unless it paid the tribute and you did not miss).',
+        'rescue',
+        m
+      );
     }
-    return '**If you roll your lucky charm — it depends when:**\n\n**1 — Miss roll → Vent:** Charm in the miss roll only saves you if it **paid the tribute**. Otherwise you still need a **rescue roll**.\n\n**2 — Rescue roll** (reroll same dice count):\n• **Charm shows** → **Safe!** No token. All **6** back. **Next player** at **6**.\n• **No charm** → Lose **1 token**. **Next player** at **6**.\n\n**3 — Normal countdown** (no miss): charm is just a die face unless it pays the target.';
-  },
-
-  _isLuckyCharmQuestion(m) {
-    return (
-      /lucky\s*charm|charm\s*number/.test(m)
-      || (/keep\s+track|remember|write\s+(?:it\s+)?down|piece\s+of\s+paper|on\s+paper/.test(m)
-        && /charm|lucky|escape\s+number/.test(m))
+    return this._withTableJoke(
+      '**If you roll your lucky charm — it depends when:**\n\n**1 — Miss roll → Vent:** Charm in the miss roll only saves you if it **paid the tribute**. Otherwise you still need a **rescue roll**.\n\n**2 — Rescue roll** (reroll same dice count):\n• **Charm shows** → **Safe!** No token. All **6** back. **Next player** at **6**.\n• **No charm** → Lose **1 token**. **Next player** at **6**.\n\n**3 — Normal countdown** (no miss): charm is just a die face unless it pays the target.',
+      'luckyCharm',
+      m
     );
   },
 
   _isScoringQuestion(m) {
-    if (this._isLuckyCharmQuestion(m) && /keep\s+track|remember|write|paper/.test(m)) return false;
+    if (this._classifyLuckyCharmTopic(m) === 'tracking') return false;
     return (
       /scor|scorecard|points?\s+board/.test(m)
       || /how\s+(?:do|does)\s+(?:you|i|we)\s+keep\s+score/.test(m)
@@ -936,19 +1303,19 @@ const adam = {
 
   _scoring() {
     const g = VOLCANO_VENT_GAME;
-    return `**Only tokens count** — start with **${g.scoring.track}**, lose **1** on a failed Vent rescue. The countdown **6→1** is **NOT scoring**. Lucky charms are **NOT scoring** either — write them on **paper**; they matter only on Vent rescues. **Last player with tokens wins.** Kids use **paper lives**.`;
+    return this._withTableJoke(
+      `**Only tokens count** — start with **${g.scoring.track}**, lose **1** on a failed Vent rescue. The countdown **6→1** is **NOT scoring**. Lucky charms are **NOT scoring** either — write them on **paper**; they matter only on Vent rescues. **Last player with tokens wins.** Kids use **paper lives**.`,
+      'tokens',
+      'scoring'
+    );
   },
 
   _winning() {
-    return `**Winning:** ${VOLCANO_VENT_GAME.winning}\n\nYou are eliminated when you lose all **3 tokens** (or paper lives). The countdown keeps cycling until only one player still has tokens.`;
-  },
-
-  _luckyCharm(m) {
-    const tracking = /keep\s+track|remember|write|paper|how\s+(?:do|does)\s+(?:you|i|we)\s+keep/.test(String(m || '').toLowerCase());
-    if (tracking) {
-      return '**Keeping track of lucky charms** (this is **not** scoring):\n\n• At setup, each player picks one number **1–6** and keeps it the whole game.\n• **Everyone writes their charm on a piece of paper** — name + number if that helps.\n• The **group remembers** who has which charm; no scoreboard needed.\n• Charms only matter when you **miss** a countdown number and need a **Vent** rescue roll — your charm on the dice saves you.\n\nDuplicates are fine — two players can both be **4**, for example.';
-    }
-    return '**Lucky charm:** each player picks one number **1–6** at the start and keeps it the whole game. **Everyone writes theirs on a piece of paper** — the group remembers who picked what. When you **miss** a countdown target, your rescue roll must show your lucky charm to survive the **Vent**. Duplicates are fine — two players can share the same charm.\n\n*This is separate from token scoring — charms are not points.*';
+    return this._withTableJoke(
+      `**Winning:** ${VOLCANO_VENT_GAME.winning}\n\nYou are eliminated when you lose all **3 tokens** (or paper lives). The countdown keeps cycling until only one player still has tokens.`,
+      'winning',
+      'winning'
+    );
   },
 
   _isWinningQuestion(m) {
@@ -966,10 +1333,10 @@ const adam = {
   },
 
   _firstRollVentGuide() {
-    if (typeof formatFirstRollVentMarkdown === 'function') {
-      return formatFirstRollVentMarkdown();
-    }
-    return this._miniExampleForTopic('first_roll_vent');
+    const base = typeof formatFirstRollVentMarkdown === 'function'
+      ? formatFirstRollVentMarkdown()
+      : this._miniExampleForTopic('first_roll_vent');
+    return this._withTableJoke(base, 'firstRoll', 'first roll vent');
   },
 
   _isVentQuestion(m) {
@@ -983,11 +1350,19 @@ const adam = {
   },
 
   _vent() {
-    return '**The Vent:** when you cannot roll the countdown target (no single die and no sum), you stand on the Vent edge — **even on the opening roll** for tribute **6**.\n\n• **Miss roll:** tribute failed → you are on the Vent.\n• **Rescue reroll:** roll **again** the **same number of dice** you failed with — a **fresh roll**, not a re-read of the miss.\n• **Lucky charm on the rescue reroll** → safe; all **6 dice** return; reset to **6**; **next player** rolls.\n• No charm on rescue → lose **1 token**; **next player** at **6**.\n\nCharm on the **miss roll** does **not** auto-save unless it paid the tribute.\n\nSay **"wind up on the Vent first roll"** for a mini example.';
+    return this._withTableJoke(
+      '**The Vent:** when you cannot roll the countdown target (no single die and no sum), you stand on the Vent edge — **even on the opening roll** for tribute **6**.\n\n• **Miss roll:** tribute failed → you are on the Vent.\n• **Rescue reroll:** roll **again** the **same number of dice** you failed with — a **fresh roll**, not a re-read of the miss.\n• **Lucky charm on the rescue reroll** → safe; all **6 dice** return; reset to **6**; **next player** rolls.\n• No charm on rescue → lose **1 token**; **next player** at **6**.\n\nCharm on the **miss roll** does **not** auto-save unless it paid the tribute.\n\nSay **"wind up on the Vent first roll"** for a mini example.',
+      'vent',
+      'vent'
+    );
   },
 
   _countdown() {
-    return '**Countdown 6→1:**\n\n1. Roll all **6 dice** for a **6** (or dice summing to 6) — set those aside.\n2. Next player rolls what is left for **5**.\n3. Continue **4 → 3 → 2 → 1**.\n4. After **1**, restart at **6** with all dice and the next player.\n\n**Sums count** — **2+2+2=6** (three dice), **4+2=6** (two dice), or a lone **6** (one die).';
+    return this._withTableJoke(
+      '**Countdown 6→1:**\n\n1. Roll all **6 dice** for a **6** (or dice summing to 6) — set those aside.\n2. Next player rolls what is left for **5**.\n3. Continue **4 → 3 → 2 → 1**.\n4. After **1**, restart at **6** with all dice and the next player.\n\n**Sums count** — **2+2+2=6** (three dice), **4+2=6** (two dice), or a lone **6** (one die).',
+      'countdown',
+      'countdown'
+    );
   },
 
   _isNoDiceLeftQuestion(m) {
@@ -1004,7 +1379,11 @@ const adam = {
       ? '**Six players?** Great table size — but Volcano Vent still uses **6 dice total** for everyone, not six dice per person. More people means more waiting between your turns, not a bigger dice pool.\n\n'
       : '';
 
-    return `${groupNote}**When there are no dice left to pass:**\n\n• Someone paid a tribute using **every die in the pool** (rare but possible — e.g. **1+1+1+1+1+1=6** sets all six aside).\n• The **next player** now needs the **next countdown number** (say **5**) but has **zero dice** to roll — that counts as **missing the mark**.\n• They stand on the **Vent**. Rescue roll uses the **same dice count you failed with** — with **0 dice**, most tables treat that as an automatic miss: **lose 1 token**, then **all 6 dice come back** and the countdown **resets to 6** for the next player.\n\n**Table tip:** you do not have to use every die on a tribute — a lone **6** for tribute **6** leaves **5 dice** to pass on; **2+2+2** still leaves **3**. Leaving dice in the pool is often smarter than emptying it.`;
+    return this._withTableJoke(
+      `${groupNote}**When there are no dice left to pass:**\n\n• Someone paid a tribute using **every die in the pool** (rare but possible — e.g. **1+1+1+1+1+1=6** sets all six aside).\n• The **next player** now needs the **next countdown number** (say **5**) but has **zero dice** to roll — that counts as **missing the mark**.\n• They stand on the **Vent**. Rescue roll uses the **same dice count you failed with** — with **0 dice**, most tables treat that as an automatic miss: **lose 1 token**, then **all 6 dice come back** and the countdown **resets to 6** for the next player.\n\n**Table tip:** you do not have to use every die on a tribute — a lone **6** for tribute **6** leaves **5 dice** to pass on; **2+2+2** still leaves **3**. Leaving dice in the pool is often smarter than emptying it.`,
+      'dice',
+      m
+    );
   },
 
   _isRollingSixQuestion(m) {
@@ -1025,12 +1404,24 @@ const adam = {
     const multiple = /multiple|several|two|three|many|\b6{2,}\b|sixes/.test(m);
 
     if (notTributeSix) {
-      return '**When the tribute is not 6** (say you already paid 6 and need **5**): a lone **6** does **not** pay the tribute — it stays in the pool unused unless it helps a **sum** to the current target. For **5**, you need a **5** or dice that add to **5** (like **2+3**), not a **6** by itself.';
+      return this._withTableJoke(
+        '**When the tribute is not 6** (say you already paid 6 and need **5**): a lone **6** does **not** pay the tribute — it stays in the pool unused unless it helps a **sum** to the current target. For **5**, you need a **5** or dice that add to **5** (like **2+3**), not a **6** by itself.',
+        'countdown',
+        m
+      );
     }
     if (multiple) {
-      return '**Multiple sixes when tribute is 6:** you only need **one** die showing **6** to pay the tribute — set **that one** aside. Extra sixes stay with the dice you pass on (they do not all get set aside). Example: roll **6-6-3-2-1-4** → set **one** six aside, **5 dice** pass to the next player, who needs **5**, not 6.';
+      return this._withTableJoke(
+        '**Multiple sixes when tribute is 6:** you only need **one** die showing **6** to pay the tribute — set **that one** aside. Extra sixes stay with the dice you pass on (they do not all get set aside). Example: roll **6-6-3-2-1-4** → set **one** six aside, **5 dice** pass to the next player, who needs **5**, not 6.',
+        'dice',
+        m
+      );
     }
-    return '**When tribute is 6** and you roll a **6:** set **that one die** aside as tribute — you do not need to use more dice. The other **5 dice** pass to the next player, who needs **5** next. A lone **6** is the simplest way to open the countdown; **4+2** and **2+2+2** work too.';
+    return this._withTableJoke(
+      '**When tribute is 6** and you roll a **6:** set **that one die** aside as tribute — you do not need to use more dice. The other **5 dice** pass to the next player, who needs **5** next. A lone **6** is the simplest way to open the countdown; **4+2** and **2+2+2** work too.',
+      'dice',
+      m
+    );
   },
 
   _isEqualSixQuestion(m) {
@@ -1050,22 +1441,46 @@ const adam = {
     const asksThree = /can\s+(?:three|3)\s+dice|three\s+dice/.test(m);
 
     if (asksThree && !/trying/.test(m)) {
-      return '**Yes — three dice can equal 6.** Example: **2+2+2**. Set those three aside; **3 dice** pass to the next player, who needs **5**, not 6.';
+      return this._withTableJoke(
+        '**Yes — three dice can equal 6.** Example: **2+2+2**. Set those three aside; **3 dice** pass to the next player, who needs **5**, not 6.',
+        'sums',
+        m
+      );
     }
     if (afterSixPaid || (/trying|equal/.test(m) && /after|next|left|remain|pass/.test(m))) {
-      return '**No — not trying to equal 6.** Tribute **6** is already paid. With the dice left, you need **5** next (then 4, 3, 2, 1).';
+      return this._withTableJoke(
+        '**No — not trying to equal 6.** Tribute **6** is already paid. With the dice left, you need **5** next (then 4, 3, 2, 1).',
+        'countdown',
+        m
+      );
     }
     if (/trying|are you|am i/.test(m)) {
-      return '**Yes — you are trying to equal 6** when the countdown starts and all **6 dice** are rolled. After someone pays 6 (even **2+2+2**), the next player needs **5**, not 6.';
+      return this._withTableJoke(
+        '**Yes — you are trying to equal 6** when the countdown starts and all **6 dice** are rolled. After someone pays 6 (even **2+2+2**), the next player needs **5**, not 6.',
+        'sums',
+        m
+      );
     }
-    return '**Yes — three dice can equal 6** (e.g. **2+2+2**). **Yes — you try to equal 6** only at the start of the countdown; after that, the target counts down **5, 4, 3, 2, 1**.';
+    return this._withTableJoke(
+      '**Yes — three dice can equal 6** (e.g. **2+2+2**). **Yes — you try to equal 6** only at the start of the countdown; after that, the target counts down **5, 4, 3, 2, 1**.',
+      'sums',
+      m
+    );
   },
 
   _sumDiceQuestion(m) {
     if (/2[\s-]*2[\s-]*2/.test(m)) {
-      return '**2+2+2=6** — set all three twos aside. **3 dice remain.** Next tribute is **5**, not 6.';
+      return this._withTableJoke(
+        '**2+2+2=6** — set all three twos aside. **3 dice remain.** Next tribute is **5**, not 6.',
+        'sums',
+        m
+      );
     }
-    return 'Sums count — **1 to 6 dice** can pay a tribute if they add up. Examples: lone **6**, **4+2**, **2+2+2**. Set only the dice you used aside; pass the rest.';
+    return this._withTableJoke(
+      'Sums count — **1 to 6 dice** can pay a tribute if they add up. Examples: lone **6**, **4+2**, **2+2+2**. Set only the dice you used aside; pass the rest.',
+      'sums',
+      m
+    );
   },
 
   _turnFlow(m) {
@@ -1074,7 +1489,11 @@ const adam = {
       VOLCANO_VENT_GAME.turnFlow.forEach(s => { out += `• ${s}\n`; });
       return out;
     }
-    return 'Roll for the **current target** (6 down to 1) with whatever dice are in the pool — **sums count**. Set paying dice aside, pass the rest. **Miss** → **Vent** rescue with your lucky charm or lose a token. After **1** or a Vent, **all 6 dice** return, reset to **6**, **next player**. Say **"full rules"** for every step written out.';
+    return this._withTableJoke(
+      'Roll for the **current target** (6 down to 1) with whatever dice are in the pool — **sums count**. Set paying dice aside, pass the rest. **Miss** → **Vent** rescue with your lucky charm or lose a token. After **1** or a Vent, **all 6 dice** return, reset to **6**, **next player**. Say **"full rules"** for every step written out.',
+      'countdown',
+      m
+    );
   },
 
   _variants() {
@@ -1100,7 +1519,11 @@ const adam = {
   },
 
   _players() {
-    return `**Players:** ${VOLCANO_VENT_GAME.players}.\n\n**Sweet spot: 3–6** — enough suspense as the countdown passes around.\n\n**Six players** works well — but remember: the game still uses **6 dice total** shared by the whole table, not six dice per person.\n\n**2 players** works (hot duel — every miss hurts).\n\n**7+** still plays — louder table, more groans when someone hits the Vent.`;
+    return this._withTableJoke(
+      `**Players:** ${VOLCANO_VENT_GAME.players}.\n\n**Sweet spot: 3–6** — enough suspense as the countdown passes around.\n\n**Six players** works well — but remember: the game still uses **6 dice total** shared by the whole table, not six dice per person.\n\n**2 players** works (hot duel — every miss hurts).\n\n**7+** still plays — louder table, more groans when someone hits the Vent.`,
+      'players',
+      'players'
+    );
   },
 
   _walkthroughSteps() {
@@ -1138,20 +1561,29 @@ const adam = {
   },
 
   _walkthroughExtras(m) {
-    if (/same\s+lucky|duplicate\s+charm/.test(m)) {
-      return '**Same lucky charm? Totally fine.** Two players can both pick **4** — on a rescue roll you only need **your** number to appear on **your** dice. No stealing someone else\'s charm. Table joke: "we\'re all fours — the volcano loves us equally."';
-    }
     if (/clever\s+sum|example.*sum|sum dice/.test(m)) {
-      return '**Clever sum examples:**\n\n• Need **6:** roll **2-2-2-1-4-5** → set aside **2+2+2** (three dice). **3 dice remain** → next demand is **5**.\n• Need **5** with 3 dice left: lone **5**, **2+3**, or **1+2+2**.\n• Need **6** with six dice: **4+2**, **3+3**, **1+2+3**, or lone **6**.\n\n*Ask the table:* "How many dice can equal 6?" — answer: **1 through 6**, as many as needed.';
+      return this._withTableJoke(
+        '**Clever sum examples:**\n\n• Need **6:** roll **2-2-2-1-4-5** → set aside **2+2+2** (three dice). **3 dice remain** → next demand is **5**.\n• Need **5** with 3 dice left: lone **5**, **2+3**, or **1+2+2**.\n• Need **6** with six dice: **4+2**, **3+3**, **1+2+3**, or lone **6**.\n\n*Ask the table:* "How many dice can equal 6?" — answer: **1 through 6**, as many as needed.',
+        'sums',
+        m
+      );
     }
     if (/push.?your.?luck|tension|thrill|laughter/.test(m)) {
-      return '**Why it feels so good:** every step down the countdown uses fewer dice — the target gets smaller but your tools shrink faster. One miss and the whole table leans in for your **one** rescue roll. Narrow escape = cheers. Sacrifice = sympathetic "nooo" and a token clink into the bowl. That mix of luck, hope, and group drama is the whole game.';
+      return this._withTableJoke(
+        '**Why it feels so good:** every step down the countdown uses fewer dice — the target gets smaller but your tools shrink faster. One miss and the whole table leans in for your **one** rescue roll. Narrow escape = cheers. Sacrifice = sympathetic "nooo" and a token clink into the bowl. That mix of luck, hope, and group drama is the whole game.',
+        'vent',
+        m
+      );
     }
     return this._walkthrough();
   },
 
   _dice() {
-    return `You need **${VOLCANO_VENT_GAME.dice}**. All six stay in play at the start of each countdown cycle. As you hit targets, dice are set aside until someone misses or the countdown finishes at **1**.`;
+    return this._withTableJoke(
+      `You need **${VOLCANO_VENT_GAME.dice}**. All six stay in play at the start of each countdown cycle. As you hit targets, dice are set aside until someone misses or the countdown finishes at **1**.`,
+      'dice',
+      'dice'
+    );
   },
 
   _tokens() {
@@ -1160,7 +1592,7 @@ const adam = {
       out += `\n\n${VOLCANO_VENT_CRAFT_TOKENS.summary}`;
       out += this._bettingFooter();
     }
-    return out;
+    return this._withTableJoke(out, 'tokens', 'tokens');
   },
 
   _kids() {
@@ -1206,6 +1638,7 @@ const adam = {
     if (code === 'keeper_not') return formatKeeperGuidanceMarkdown({ focus: 'not' });
     if (code === 'how_we_decide') return formatHowWeDecideMarkdown();
     if (code === 'antes_guide') return formatAntesInstructionsMarkdown();
+    if (code === 'pot_size') return typeof formatPotSizeMarkdown === 'function' ? formatPotSizeMarkdown() : code;
     if (code === 'craft_tokens_list') return formatCraftTokensMarkdown();
     if (code === 'safety_advice') return formatPretendBetSafetyAdviceMarkdown();
     return code;
