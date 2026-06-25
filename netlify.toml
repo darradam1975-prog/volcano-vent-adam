@@ -26,3 +26,13 @@
   for = "/.netlify/functions/*"
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate"
+
+[[redirects]]
+  from = "/s/:id"
+  to = "/share.html?s=:id"
+  status = 200
+
+[[headers]]
+  for = "/share.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

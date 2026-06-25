@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a0f0a">
+  <title>Shared chat — Adam The Volcano Vent Bot</title>
+  <meta name="description" content="Read-only shared Volcano Vent Dice conversation with Adam The Volcano Vent Bot.">
+  <meta property="og:title" content="Shared Volcano Vent Dice chat">
+  <meta property="og:description" content="Read-only chat about Volcano Vent Dice rules with Adam The Volcano Vent Bot.">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=57">
+</head>
+<body class="share-page">
+  <div class="app-shell share-shell">
+    <div class="main-column">
+      <header class="header share-header">
+        <div class="brand">
+          <div class="brand-icon" aria-hidden="true">🌋</div>
+          <div>
+            <h1 id="share-page-title">Shared chat</h1>
+            <p class="tagline" id="share-page-subtitle">Adam The Volcano Vent Bot · read-only</p>
+          </div>
+        </div>
+        <div class="header-controls">
+          <a class="btn-secondary share-start-btn" href="/">Start your own chat</a>
+        </div>
+      </header>
+
+      <p class="share-banner" id="share-banner">Anyone with this link can read this conversation.</p>
+
+      <main class="chat-wrap share-chat-wrap">
+        <div class="chat-viewport share-viewport" id="share-viewport">
+          <div class="chat-messages" id="share-chat" role="log" aria-live="polite"></div>
+        </div>
+        <p class="share-loading" id="share-loading">Loading shared chat…</p>
+        <p class="share-error hidden" id="share-error"></p>
+      </main>
+
+      <p class="footer-note share-footer">Shared voluntarily by the chat owner. <a href="/">Open Adam The Volcano Vent Bot</a> to ask your own questions.</p>
+    </div>
+  </div>
+
+  <script src="js/share.js?v=57"></script>
+  <script>
+    function formatMarkdown(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    }
+
+    function shareIdFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('s') || params.get('shareId') || params.get('share');
+      if (q) return q;
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      if (parts[0] === 's' && parts[1]) return decodeURIComponent(parts[1]);
+      return null;
+    }
+
+    function renderMessage(role, text, source) {
+      const el = document.createElement('div');
+      el.className = `message ${role}`;
+      const body = document.createElement('div');
+      body.className = 'message-body';
+      body.innerHTML = formatMarkdown(text);
+      el.appendChild(body);
+      if (source && role === 'assistant') {
+        const meta = document.createElement('div');
+        meta.className = 'message-meta';
+        meta.textContent = source;
+        el.appendChild(meta);
+      }
+      return el;
+    }
+
+    async function loadSharedChat() {
+      const shareId = shareIdFromUrl();
+      const loading = document.getElementById('share-loading');
+      const errEl = document.getElementById('share-error');
+      const chat = document.getElementById('share-chat');
+
+      if (!shareId) {
+        if (loading) loading.classList.add('hidden');
+        if (errEl) {
+          errEl.textContent = 'Missing share link — ask the sender for the full URL.';
+          errEl.classList.remove('hidden');
+        }
+        return;
+      }
+
+      try {
+        const data = await adamShare.fetchShared(shareId);
+        const title = data.title || 'Shared Volcano Vent chat';
+        document.title = `${title} — Adam The Volcano Vent Bot`;
+        const titleEl = document.getElementById('share-page-title');
+        if (titleEl) titleEl.textContent = title;
+        const ogTitle = document.querySelector('meta[property="og:title"]');
+        if (ogTitle) ogTitle.setAttribute('content', title);
+
+        (data.messages || []).forEach(m => {
+          chat.appendChild(renderMessage(m.role, m.text, m.source));
+        });
+
+        if (loading) loading.classList.add('hidden');
+        chat.scrollTop = chat.scrollHeight;
+      } catch (e) {
+        if (loading) loading.classList.add('hidden');
+        if (errEl) {
+          errEl.textContent = String(e.message || e);
+          errEl.classList.remove('hidden');
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSharedChat);
+  </script>
+</body>
+</html>

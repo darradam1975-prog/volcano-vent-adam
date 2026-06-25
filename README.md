@@ -28,6 +28,7 @@ Optional GPT: add an OpenAI API key in **Settings** (stored on device only).
 ```bash
 node scripts/test-adam.mjs
 node scripts/test-sync-merge.mjs
+node scripts/test-share.mjs
 ```
 
 ## Deploy (Netlify)
@@ -46,10 +47,17 @@ npx netlify-cli deploy --prod --dir .
 | `js/rules.js` | Canonical Volcano Vent Dice rules |
 | `scripts/test-adam.mjs` | Bot regression tests |
 
+## Share links (opt-in)
+
+- Tap **🔗 Share** on any chat to create a **public read-only link** (like ChatGPT conversation share).
+- Copy the link or post to X, Facebook, LinkedIn, Reddit, WhatsApp, email, or use native **Share…** on mobile.
+- Anyone with the link can view that conversation at `/s/your-link-id`.
+- **Stop sharing** revokes the link. Chats are private until you share.
+
 ## Privacy
 
-- Chats are **strictly confidential** — never shared with other users, like any private GPT session.
-- Conversation history stays on your device unless you optionally sync with **your own** Sync ID (keep it secret).
+- Chats are **private by default** — not visible to other users unless you create a share link.
+- Optional sync uses **your** private Sync ID across your devices.
 - Birthday and API keys stay on your device only.
 
 ## Guardrails

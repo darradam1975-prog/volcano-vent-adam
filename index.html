@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=56">
+  <link rel="stylesheet" href="css/styles.css?v=57">
 </head>
 <body>
   <div class="app-shell">
@@ -35,6 +35,7 @@
       </div>
       <div class="header-controls">
         <button class="icon-btn header-new-btn" id="header-new-conversation-btn" type="button" title="New conversation" aria-label="New conversation">+</button>
+        <button class="icon-btn" id="share-conversation-btn" type="button" title="Share this chat — copy link for social" aria-label="Share conversation">🔗</button>
         <span class="age-badge guest" id="age-badge" title="Set birthday in Settings">Guest</span>
         <button class="icon-btn" id="voice-toggle" type="button" title="Listen: off — tap to hear Adam The Volcano Vent Bot speak">
           <span class="voice-icon" aria-hidden="true">🔇</span>
@@ -93,7 +94,7 @@
       </div>
     </main>
 
-    <p class="footer-note">Chats are <strong>strictly confidential</strong> — never shared with other users, like any private GPT session. Birthday stays on your device only. Pretend bets with buttons &amp; beads require age 18+.</p>
+    <p class="footer-note">Chats are <strong>private by default</strong>. Tap <strong>🔗 Share</strong> only if you want a public link (like ChatGPT share) — anyone with the link can read that chat. Birthday stays on your device. Pretend bets require age 18+.</p>
     </div>
   </div>
 
@@ -112,6 +113,30 @@
           <button class="btn-primary" id="age-confirm" type="button">Save birthday</button>
           <button class="btn-secondary" id="age-dismiss" type="button">Not now</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share modal -->
+  <div class="modal-overlay" id="share-modal" role="dialog" aria-labelledby="share-modal-title" aria-modal="true">
+    <div class="modal share-modal">
+      <div class="modal-header">
+        <h2 id="share-modal-title">Share chat</h2>
+        <button class="modal-close" id="share-modal-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="share-warning"><strong>Public link</strong> — anyone with this link can read <span id="share-conv-title">this chat</span> (read-only), like ChatGPT conversation share.</p>
+        <label class="share-url-label">
+          Share link
+          <input type="text" id="share-url-input" class="share-url-input" readonly placeholder="Generating link…" spellcheck="false">
+        </label>
+        <p class="share-status hidden" id="share-status"></p>
+        <div class="modal-actions">
+          <button class="btn-primary" id="share-copy-btn" type="button">Copy link</button>
+          <button class="btn-secondary hidden" id="share-revoke-btn" type="button">Stop sharing</button>
+        </div>
+        <p class="settings-note share-social-label">Share to any platform:</p>
+        <div class="share-social" id="share-social"></div>
       </div>
     </div>
   </div>
@@ -165,7 +190,7 @@
         </section>
         <section class="settings-section settings-privacy">
           <h3>Privacy</h3>
-          <p class="settings-note">Your chats are <strong>strictly confidential</strong> — never shared with other users, like any private GPT session. We do not read, sell, or expose your conversations to anyone else. Optional sync only links <strong>your</strong> devices when you use the same private Sync ID.</p>
+          <p class="settings-note">Chats are <strong>private by default</strong>. Optional <strong>🔗 Share</strong> creates a public read-only link (like ChatGPT) — only if you choose. Sync links <strong>your</strong> devices with a private Sync ID. We do not sell your data.</p>
         </section>
         <section class="settings-section settings-sync">
           <h3>Sync conversations (your devices only)</h3>
@@ -206,15 +231,16 @@
     </div>
   </div>
 
-  <script src="js/rules.js?v=56"></script>
-  <script src="js/teach-flow.js?v=56"></script>
-  <script src="js/llm-settings.js?v=56"></script>
-  <script src="js/chat-scroll.js?v=56"></script>
-  <script src="js/conversations.js?v=56"></script>
-  <script src="js/age-verify.js?v=56"></script>
-  <script src="js/voice.js?v=56"></script>
-  <script src="js/llm.js?v=56"></script>
-  <script src="js/adam.js?v=56"></script>
-  <script src="js/app.js?v=56"></script>
+  <script src="js/rules.js?v=57"></script>
+  <script src="js/teach-flow.js?v=57"></script>
+  <script src="js/llm-settings.js?v=57"></script>
+  <script src="js/chat-scroll.js?v=57"></script>
+  <script src="js/conversations.js?v=57"></script>
+  <script src="js/age-verify.js?v=57"></script>
+  <script src="js/voice.js?v=57"></script>
+  <script src="js/llm.js?v=57"></script>
+  <script src="js/adam.js?v=57"></script>
+  <script src="js/share.js?v=57"></script>
+  <script src="js/app.js?v=57"></script>
 </body>
 </html>

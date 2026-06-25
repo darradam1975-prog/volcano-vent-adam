@@ -73,6 +73,9 @@ const adamConversations = {
         createdAt: c.createdAt || Date.now(),
         updatedAt: c.updatedAt || Date.now(),
         messages: Array.isArray(c.messages) ? c.messages.slice(-200) : [],
+        shareId: c.shareId ? String(c.shareId).slice(0, 48) : undefined,
+        shareUrl: c.shareUrl ? String(c.shareUrl).slice(0, 300) : undefined,
+        sharedAt: c.sharedAt || undefined,
         adamState: {
           teachMode: !!c.adamState?.teachMode,
           lastTopic: c.adamState?.lastTopic || 'general',

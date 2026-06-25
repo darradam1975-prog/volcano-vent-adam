@@ -940,6 +940,131 @@ body.modal-open {
   color: var(--accent, #e8a87c);
 }
 
+/* Share conversation */
+.share-modal {
+  max-width: 480px;
+}
+
+.share-warning {
+  font-size: 0.85rem;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(232, 93, 42, 0.1);
+  border: 1px solid rgba(232, 93, 42, 0.25);
+}
+
+.share-url-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.share-url-input {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+}
+
+.share-status {
+  font-size: 0.78rem;
+  color: var(--teal, #4ecdc4);
+  margin: 6px 0 10px;
+}
+
+.share-status.share-status-error {
+  color: var(--lava-bright, #ff6b35);
+}
+
+.share-social-label {
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
+
+.share-social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.share-social-btn {
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.share-social-btn:hover,
+.share-social-btn:focus-visible {
+  background: rgba(78, 205, 196, 0.12);
+  border-color: rgba(78, 205, 196, 0.35);
+}
+
+.share-page .share-shell {
+  min-height: 100vh;
+}
+
+.share-header .share-start-btn {
+  text-decoration: none;
+  font-size: 0.78rem;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.share-banner {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.share-chat-wrap {
+  padding-bottom: 12px;
+}
+
+.share-viewport {
+  max-height: calc(100vh - 220px);
+  min-height: 280px;
+}
+
+.share-loading,
+.share-error {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 16px;
+}
+
+.share-error {
+  color: var(--lava-bright, #ff6b35);
+}
+
+.share-footer {
+  text-align: center;
+  padding-bottom: 20px;
+}
+
+.share-footer a {
+  color: var(--accent, #e8a87c);
+}
+
 .settings-voice input[type="range"] {
   width: 100%;
   margin-top: 4px;

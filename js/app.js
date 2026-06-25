@@ -157,6 +157,7 @@ function initApp() {
   adamLlmSettings?.bindSettingsUi?.();
   adamChatScroll?.init?.();
   adamConversations?.init?.();
+  adamShare?.bindUi?.();
 
   document.getElementById('send-btn')?.addEventListener('click', sendMessage);
   document.getElementById('chat-input')?.addEventListener('keydown', e => {
