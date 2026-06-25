@@ -913,7 +913,8 @@ const adam = {
 
   _isCraftTokenQuestion(m) {
     return (
-      /gold|silver|precious|jewelry|jewellery|poker\s+chip/.test(m) && /bead|button|token|chip|ante|pretend|bet/.test(m)
+      /gold|silver|precious|jewelry|jewellery|gem(?:\s+bead)?|diamond|ruby|sapphire|emerald|poker\s+chip/.test(m) && /bead|button|token|chip|ante|pretend|bet/.test(m)
+      || /turquoise|glass\s+bead|wood(?:en)?\s+bead/.test(m) && /bead|ante|pretend|bet|pot|token/.test(m)
       || /craft\s*shop|sewing\s+button|fabric\s+button/.test(m)
       || /seed|bean|corn\s+kernel|pumpkin\s+seed|sunflower/.test(m)
       || /pebble|river\s+stone|aquarium\s+gravel|gem\s+chip/.test(m)
@@ -946,8 +947,13 @@ const adam = {
       if (adamAgeVerifier.canDiscussBetting()) out += this._bettingFooter();
       return out;
     }
-    if (/gold|silver|precious|jewelry|jewellery/.test(t)) {
-      let out = '**Skip gold, silver, and precious-metal tokens** — they feel too much like real stakes. Use seeds, beads, buttons, pebbles, clips, **marbles**, or **jacks** instead.';
+    if (/gold|silver|precious|jewelry|jewellery|diamond|ruby|sapphire|emerald/.test(t) && /bead|gem|token|ante|pretend|bet/.test(t)) {
+      let out = '**Skip gold, silver, and precious-gem beads** — they feel like jewelry or real money. Use **wood beads**, **glass beads**, regular stone like **turquoise**, pony beads, buttons, seeds, pebbles, **marbles**, or **jacks** instead.';
+      if (adamAgeVerifier.canDiscussBetting()) out += this._bettingFooter();
+      return out;
+    }
+    if (/turquoise|glass\s+bead|wood(?:en)?\s+bead/.test(t) && /bead|ante|pretend|bet|pot/.test(t)) {
+      let out = '**Yes — those fit the bead value rule.** **Wood and glass beads** are preferred. **Regular stone beads** like **turquoise** (craft-grade, not jewelry) are fine. Still **no gold, silver, or precious gems** — cheap craft stuff only.';
       if (adamAgeVerifier.canDiscussBetting()) out += this._bettingFooter();
       return out;
     }
@@ -961,8 +967,8 @@ const adam = {
       if (adamAgeVerifier.canDiscussBetting()) out += this._bettingFooter();
       return out;
     }
-    if (/pebble|stone|gravel|gem\s+chip/.test(t)) {
-      let out = '**Stones & pebbles work** — smooth river stones, aquarium gravel, polished gem chips. Durable; different colors can mean different pretend ante sizes (like colored buttons).';
+    if (/pebble|stone|gravel|turquoise/.test(t) && !/precious|diamond|ruby|sapphire|emerald|gold|silver/.test(t)) {
+      let out = '**Stones & pebbles work** — smooth river stones, aquarium gravel, **regular stone beads** (turquoise, plain craft stone). **Not precious gems or jewelry-grade stones.** Different colors can mean different pretend ante sizes.';
       if (adamAgeVerifier.canDiscussBetting()) out += this._bettingFooter();
       return out;
     }
@@ -1686,11 +1692,11 @@ const adam = {
       return this._houseRules(m);
     }
     if (/not\s+allowed|what\s+(?:is\s+)?not|forbidden|never/.test(m)) {
-      let out = '**Not allowed:** no real cash or payment apps; **no poker chips**; no gold/silver; **no chasing losses**; **no double-or-nothing**; no keeper without unanimous napkin vote; no pretend bets with kids; no pressuring anyone.';
+      let out = '**Not allowed:** no real cash or payment apps; **no poker chips**; no gold/silver/**precious-gem beads**; **no chasing losses**; **no double-or-nothing**; no keeper without unanimous napkin vote; no pretend bets with kids; no pressuring anyone.';
       return out + this._bettingFooter();
     }
     if (/allowed|what\s+can|ok\s+to/.test(m)) {
-      let out = '**Allowed (18+):** equal craft tokens (beads, seeds, pebbles, clips, marbles, jacks…), tiny **antes** per countdown reset, **House Rule 1** default, keeper only if everyone agrees **before** the first roll.';
+      let out = '**Allowed (18+):** equal craft tokens — **wood & glass beads** preferred, regular stone beads (turquoise OK), seeds, pebbles, clips, marbles, jacks… Tiny **antes** per countdown reset, **House Rule 1** default, keeper only if everyone agrees **before** the first roll.';
       return out + this._bettingFooter();
     }
     return formatConciseButtonsBeadsIntro() + this._bettingFooter();

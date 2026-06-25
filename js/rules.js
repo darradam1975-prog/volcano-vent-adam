@@ -15,7 +15,7 @@ const VOLCANO_VENT_GAME = {
     'Roll a **6→5→4→3→2→1** countdown with six dice. Miss your number and you stand on the **Vent** — rescue yourself with your **lucky charm** or sacrifice a token. Last player with tokens wins.',
   setup: [
     '**6 standard d6 dice** and **3 tokens** per player (buttons, beads, chips from a shared bowl).',
-    'Each player picks a **lucky charm** number (**1–6**) for the whole game — duplicates are fine. Everyone writes theirs on a **piece of paper**; the group remembers who has which number.',
+    'Each player picks a **lucky charm** number (**1 through 6 only** — standard die faces) for the whole game — duplicates are fine. Choose at setup, **before the first roll**; everyone writes theirs on **paper**.',
     'Pick who goes first — youngest or roll for it.',
     '**Kids at the table:** use paper lives or stickers instead of losing tokens — no pretend bets.',
     '**18+ pretend bets:** equal stacks; agree **House Rule 1** (return all) or **House Rule 2** (keeper pot) before the first roll.'
@@ -48,7 +48,7 @@ const VOLCANO_VENT_GAME = {
   tips: {
     beginner: [
       'Write the **6→1 countdown** on paper so everyone sees the target each pass.',
-      'Your **lucky charm** is your escape number — pick it once, **write it on paper**, and let the group remember it.',
+      'Your **lucky charm** must be **1, 2, 3, 4, 5, or 6** — pick once at setup, **write it on paper**, and let the group remember it. Regular groups often reuse the same favorite number every game night.',
       'Adding dice is allowed — **2+2+2=6** uses three dice; **4+2=6** uses two. Ask: "How many dice can equal 6?"',
       'After **2-2-2**, three dice pass on — next target is **5**, not 6.'
     ],
@@ -112,6 +112,8 @@ function matchLoreTopic(message) {
     return 'countdown';
   }
   if (/lucky\s+charm.*(?:lore|story|mean|metaphor)/.test(m)
+    || /(?:lore|story|metaphor).*(?:the\s+)?lucky\s+charm/.test(m)
+    || /tell\s+me.*lucky\s+charm.*(?:lore|story)/.test(m)
     || /why.*lucky\s+charm/.test(m)) {
     return 'luckyCharm';
   }
@@ -136,27 +138,142 @@ function matchLoreQuestion(message) {
   return !!matchLoreTopic(message);
 }
 
-function formatVolcanoVentLoreMarkdown(topic) {
+function formatVolcanoVentLoreMarkdown(topic, options = {}) {
   const L = VOLCANO_VENT_LORE;
   const key = topic && L[topic] ? topic : 'overview';
   const body = L[key] || L.overview;
+  const compound = options.compound === true;
   const labels = {
     whyVent: 'Why "the Vent"?',
     ventEdge: 'On the Vent edge',
     countdown: 'The countdown',
     crawling: 'Crawling down the volcano',
     name: 'Why "Volcano Vent Dice"?',
-    luckyCharm: 'Lucky charm',
+    luckyCharm: 'Lucky charm lore',
     tokens: 'Tokens & sacrifice',
     overview: 'Volcano Vent lore'
   };
-  let out = `**${labels[key] || 'Volcano Vent lore'}**\n\n${body}`;
-  if (key !== 'overview') {
-    out += '\n\n**Try next:** "What does the countdown mean?" · "Are we on the edge of the volcano?" · **"volcano vent lore"** for the full picture.';
-  } else {
-    out += '\n\nAsk about **why the Vent**, the **countdown**, **crawling down the volcano**, or **lucky charm lore** — flavor only; rules stay the same.';
+  const compoundBody = compound
+    ? String(body).replace(/^\*\*[^*]+\*\*:?\s*/, '').trim()
+    : body;
+  let out = compound
+    ? compoundBody
+    : `**${labels[key] || 'Volcano Vent lore'}**\n\n${body}`;
+  if (!compound) {
+    if (key !== 'overview') {
+      out += '\n\n**Try next:** "What does the countdown mean?" · "Are we on the edge of the volcano?" · **"volcano vent lore"** for the full picture.';
+    } else {
+      out += '\n\nAsk about **why the Vent**, the **countdown**, **crawling down the volcano**, or **lucky charm lore** — flavor only; rules stay the same.';
+    }
   }
   return out;
+}
+
+/** Home-table one-liners — flavor for answers, not extra rules. */
+const VOLCANO_VENT_TABLE_JOKES = {
+  luckyCharm: [
+    'we\'re all fours — the volcano loves us equally.',
+    'my charm is two — cheap date with destiny.',
+    'picked six because the mountain respects confidence.',
+    'writes charm on paper: group memory, not superstition.',
+    'duplicate charms? the volcano has room for favorites.',
+    'charm didn\'t show — the table does the sympathetic groan.',
+    'lucky charm on rescue: grab the rim and pretend you planned it.'
+  ],
+  vent: [
+    'you\'re on the Vent — don\'t look down, look at the dice.',
+    'standing on the Vent lip: dramatic pause included.',
+    'the table goes quiet — that\'s how you know it\'s the Vent.',
+    'Vent day: even the snack bowl stops crunching.',
+    'miss the tribute? welcome to the rim — population: nervous.',
+    'the Vent isn\'t lava yet; it\'s the "uh-oh" shelf.'
+  ],
+  rescue: [
+    'rescue roll — one handshake with gravity.',
+    'fresh roll, same dice — no take-backs.',
+    'whole table leans in; physics leans back.',
+    'one rescue roll — maximum hope, minimum dice.',
+    'saved on rescue? the volcano pretends it meant to let you go.'
+  ],
+  countdown: [
+    'six down to one — we\'re crawling the cone.',
+    'countdown at four — the volcano clears its throat.',
+    'after one, back to six — the elevator\'s out of order.',
+    'target\'s shrinking faster than the dice pool — classic Volcano Vent.',
+    'paid tribute five? the mountain nods and waits for four.'
+  ],
+  sums: [
+    '2+2+2 — the mountain accepts installment plans.',
+    'math is allowed; the volcano doesn\'t grade your work twice.',
+    'three twos walk into a tribute bar — only three leave.',
+    '4+2 works; so does 1+2+3 — the cone is not picky.',
+    'clever sums: the quiet flex of the home table.'
+  ],
+  tokens: [
+    'token clink into the bowl — RIP, little friend.',
+    'three tokens — three chances before the mountain shrugs.',
+    'lost a token? the table says "oof" in unison.',
+    'sacrifice a bead — the volcano accepts craft-shop currency.',
+    'two tokens left — everyone suddenly your friend.'
+  ],
+  winning: [
+    'last tokens standing — monarch of the lukewarm lava.',
+    'winner doesn\'t conquer the volcano; they outlast the groans.',
+    'one player left — the mountain files the paperwork.',
+    'you win when everyone else ran out of offerings.'
+  ],
+  players: [
+    'six players, six dice — sharing is caring and chaotic.',
+    'two-player Vent duel — every miss is personal.',
+    'big table, small pool — patience is part of the game.',
+    'sweet spot three to six — enough groans to feel like a crowd.'
+  ],
+  dice: [
+    'six dice, one volcano — crowd control issues.',
+    'dice pool shrinking — the tension\'s doing push-ups.',
+    'all six back in the middle — the cone resets, egos don\'t.',
+    'one die left for tribute four — pray or do math.'
+  ],
+  firstRoll: [
+    'first-roll Vent — welcome to the mountain, here\'s the rim.',
+    'opened with a miss — bold strategy, volcanic results.',
+    'tribute six on roll one — no warm-up, straight to drama.',
+    'first roll rescue with all six dice — maximum spectacle.'
+  ],
+  reset: [
+    'countdown resets to six — new chain, same nervous table.',
+    'all six dice back — the volcano hits the rewind button.',
+    'fresh chain at six — time to feed the cone again.'
+  ],
+  betting: [
+    'one bead per reset — high finance, craft-shop prices.',
+    'House Rule 1: everyone gets their beans back — democracy of beans.',
+    'napkin vote unanimous? rare as a perfect opening roll.',
+    'keeper pot night — winner takes the mismatched buttons, glory optional.'
+  ],
+  general: [
+    'the volcano isn\'t angry; it\'s just counting.',
+    'home-table rule: cheer saves, groans cost nothing.',
+    'napkin votes count — democracy with crumbs.',
+    'Volcano Vent: family game night with extra rim-shot energy.',
+    'miss the mark? the mountain shrugs in six-sided dice.',
+    'paper for charms, bowl for beads, drama for free.'
+  ]
+};
+
+function pickVolcanoVentTableJoke(topic, seed = '') {
+  const key = topic && VOLCANO_VENT_TABLE_JOKES[topic] ? topic : 'general';
+  const list = VOLCANO_VENT_TABLE_JOKES[key];
+  if (!list || !list.length) return VOLCANO_VENT_TABLE_JOKES.general[0];
+  let h = 0;
+  const s = String(seed || key);
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i);
+  return list[Math.abs(h) % list.length];
+}
+
+function formatTableJokeLine(joke) {
+  if (!joke) return '';
+  return `\n\n*Table joke:* "${joke}"`;
 }
 
 /** Gentle support line — not a lecture; for buttons/beads chat when things feel heavy. */
@@ -169,13 +286,20 @@ const VOLCANO_VENT_HELPLINE = {
 
 /** Craft tokens only — not jewelry or casino stakes. */
 const VOLCANO_VENT_CRAFT_TOKENS = {
+  beadValueRule:
+    '**Bead value rule:** **Wood and glass beads** are the sweet spot — cheap craft-shop stuff. **Regular stone beads** (turquoise, howlite, plain stone — not jewelry-grade) are fine. **No gold, no silver, no precious gems** (diamond, ruby, emerald, etc.) — if it feels like jewelry or real money, it is off the table.',
   summary:
-    'Use cheap **craft tokens** for antes — beads, buttons, seeds, pebbles, clips, **marbles**, **jacks**. Mixed pot is fine. **Never real poker chips, cash, or gold/silver.**',
+    'Use cheap **craft tokens** for antes — **wood & glass beads** (preferred), buttons, seeds, pebbles, clips, **marbles**, **jacks**. Mixed pot is fine. **Never poker chips, cash, gold/silver, or precious-gem beads.**',
   categories: [
     {
-      name: 'Beads & buttons',
+      name: 'Beads (preferred: wood & glass)',
       text:
-        '**Craft-shop beads** (plastic, wood, pony) and **sewing buttons** — any size, junk-drawer mismatches OK.'
+        '**Wood beads** and **glass beads** first — pony beads, craft-shop strands, junk-drawer mismatches. **Plastic beads** OK too. **Regular stone beads** like **turquoise** or other non-gem craft stones are fine — just not jewelry or precious gems.'
+    },
+    {
+      name: 'Buttons',
+      text:
+        '**Sewing buttons** — any size, mismatched is fine. Not gold- or silver-plated dress buttons meant to look valuable.'
     },
     {
       name: 'Seeds & beans',
@@ -185,7 +309,7 @@ const VOLCANO_VENT_CRAFT_TOKENS = {
     {
       name: 'Stones & pebbles',
       text:
-        'Small smooth **river stones**, aquarium **gravel**, polished **gem chips** — durable; varied colors can mark different pretend amounts (like colored buttons).'
+        'Small smooth **river stones**, aquarium **gravel**, plain **stone beads** — durable; varied colors can mark different pretend amounts. **Not precious gems or gem-grade jewelry stones.**'
     },
     {
       name: 'Paper clips & fasteners',
@@ -203,13 +327,13 @@ const VOLCANO_VENT_CRAFT_TOKENS = {
     'Write what you are using on the **napkin** before the first roll (especially if mixing types).'
   ],
   avoid:
-    '**Never:** real **poker chips**, cash, PayPal/Venmo, gold/silver/precious-metal beads, or anything that feels like a casino or real-money stake. **Marbles or jacks** beat poker chips every time.'
+    '**Never:** real **poker chips**, cash, PayPal/Venmo, **gold or silver beads**, **precious-gem beads** (diamond, ruby, sapphire, emerald, etc.), or anything that feels like jewelry or real money. **Marbles or jacks** beat poker chips every time.'
 };
 
 /** Two house rules for pretend bets — buttons, beads, and things only. */
 const VOLCANO_VENT_BETTING = {
   tokens:
-    'Craft tokens for antes — beads, buttons, seeds, pebbles, paper clips, marbles, jacks (pot need not match). **Never real poker chips, cash, gold, or silver.**',
+    'Craft tokens for antes — **wood & glass beads** (preferred), buttons, seeds, pebbles, clips, marbles, jacks (pot need not match). **Never poker chips, cash, gold, silver, or precious-gem beads.**',
   minAge: 18,
   helpline: VOLCANO_VENT_HELPLINE,
   craftTokens: VOLCANO_VENT_CRAFT_TOKENS,
@@ -238,7 +362,7 @@ const VOLCANO_VENT_BETTING = {
   notAllowed: [
     '**Real cash**, coins you keep, PayPal, Venmo, Cash App, or IOUs.',
     '**Real poker chips** — use **marbles**, **jacks**, or other craft tokens instead.',
-    '**Gold beads, silver beads**, or precious-metal tokens that feel like real stakes.',
+    '**Gold beads, silver beads**, **precious-gem beads**, or any jewelry-grade tokens that feel like real stakes.',
     'Keeper pots without a **unanimous napkin vote** where **every player took part**.',
     'Pretend bets when **kids or teens** are at the table — paper lives only.',
     'Pressuring anyone to bet or keep the pot.',
@@ -262,7 +386,7 @@ const VOLCANO_VENT_BETTING = {
       '**Kids or teens** present — paper lives only, no keeper bowl.',
       '**Unanimous napkin vote did not happen** before the first roll.',
       'Mood is **tense**, beads pile up faster than laughs, or anyone was **pressured** to vote keeper.',
-      'Stakes stopped feeling like **craft junk** — gold beads, poker chips, or “you owe me” vibes.',
+      'Stakes stopped feeling like **craft junk** — gold/silver beads, precious gems, poker chips, or “you owe me” vibes.',
       '**1-800-GAMBLER** territory — if pretend play feels heavy, drop keeper and return everything; call **1-800-426-2537** if needed.'
     ]
   },
@@ -289,7 +413,7 @@ const VOLCANO_VENT_BETTING = {
     ],
     suggestions: [
       '**Light table:** no antes — just play tokens/paper lives.',
-      '**Social table:** **1 ante per countdown reset** + **House Rule 1** (return all).',
+      '**Social table:** **1 craft token per player** each countdown reset + **House Rule 1** (return all).',
       '**Spicier table:** antes + one simple side bet (Vent penalty bead) — still **return-all default**.',
       '**Keeper night:** **House Rule 2** only with unanimous yes — winner keeps the **ante bowl**, not anyone’s real property.'
     ]
@@ -309,7 +433,7 @@ const VOLCANO_VENT_BETTING = {
       '**Anyone is unsure**, quiet, abstaining, or only going along to avoid awkwardness — not unanimous.',
       '**Someone skipped** the napkin vote or was not at the table when it passed.',
       'Someone was **pressured** to bet or to vote for keeper mode.',
-      'Tokens feel like **real money** — gold/silver beads, IOUs, Venmo, “you owe me.”',
+      'Tokens feel like **real money** — gold/silver beads, precious gems, IOUs, Venmo, “you owe me.”',
       'Keeper mode was **not agreed before play** — mid-game rule changes do not count.',
       'The mood is tense, competitive in a bad way, or beads are piling up faster than laughs.',
       '**First time** trying pretend bets at this table — start with **return-all**.',
@@ -332,7 +456,8 @@ const VOLCANO_VENT_BETTING = {
       'You **do not** ante on every roll — only when a **new chain** begins at **6**.'
     ],
     how: [
-      'Each player drops the **same agreed amount** into the bowl (e.g. one bean, bead, marble, or paper clip).',
+      'Each player drops the **same agreed amount** into the bowl (default: **1 craft token each** per reset).',
+      'The **pot grows** — there is no fixed bowl size. Four players at 1 bead each reset adds **4 beads** that reset.',
       'The player whose turn it is rolls **all 6 dice** for tribute **6**.',
       'Play the normal countdown — lose **Vent tokens** only on failed rescues, not for antes.'
     ],
@@ -352,7 +477,7 @@ const VOLCANO_VENT_NAPKIN_VOTE = {
     '**Keeper buttons & beads rule:** **House Rule 2** needs a **napkin vote** where **everyone at the table votes**, and the result must be **unanimous yes**. One **no**, **pass**, **unsure**, or anyone **not voting** → **House Rule 1** (return all).',
   typical: [
     '**House Rule 1** (return all) or **House Rule 2** (keeper pot — unanimous napkin vote)',
-    '**Ante size** — e.g. one craft bead per countdown reset',
+    '**Ante size** — e.g. **1 craft token per player** each countdown reset (pot grows; not a fixed size)',
     '**Lucky charms** — who picked which number',
     '**Kids at the table?** → paper lives only, no pretend bets'
   ],
@@ -441,7 +566,27 @@ const VOLCANO_VENT_BASIC_QA = [
     answer: 'lucky_charm_dice_reset'
   },
   {
-    test: m => /same\s+(?:lucky\s+)?charm|duplicate\s+charm|two\s+people.*charm/.test(m),
+    test: m => /can\s+(?:my|our|your|i|we|the)\s+lucky\s+charm\s+(?:always\s+)?be|lucky\s+charm\s+be\s+(?:my|our|your|a)\s+favorit|be\s+(?:my|our|your)\s+favorit(?:e|ite)\s+number/.test(m)
+      || /use\s+(?:my\s+)?favorit(?:e|ite)\s+number\s+as\s+(?:my\s+)?lucky\s+charm/.test(m)
+      || /is\s+it\s+ok(?:ay)?.*favorit(?:e|ite)\s+number.*lucky\s+charm|lucky\s+charm.*favorit(?:e|ite)\s+number.*ok/.test(m),
+    answer: 'lucky_charm_favorite'
+  },
+  {
+    test: m => /how\s+(?:do|does)\s+(?:you|i|we)\s+choose|how\s+to\s+(?:choose|pick)|(?:choose|pick)\s+(?:a\s+)?(?:my\s+|our\s+|your\s+)?lucky\s+charm/.test(m)
+      || /favorite\s+number|favourite\s+number/.test(m) && /lucky\s+charm|charm/.test(m)
+      || /always\s+(?:the\s+)?same\s+(?:lucky\s+charm|number|charm\s+number)/.test(m)
+      || /same\s+number\s+every\s+(?:game|night|time)/.test(m) && /lucky\s+charm|charm/.test(m)
+      || /regular\s+group.*lucky\s+charm|lucky\s+charm.*regular\s+group/.test(m)
+      || /must\s+(?:choose|pick)\s+from/.test(m) && /lucky\s+charm|charm/.test(m),
+    answer: 'lucky_charm_choose'
+  },
+  {
+    test: m => /what\s+numbers?\s+(?:can|could|must)\s+(?:a\s+)?lucky\s+charm|lucky\s+charm.*(?:1\s+through\s+6|one\s+through\s+six)/.test(m)
+      || /only\s+(?:1|one)\s+through\s+6/.test(m) && /lucky\s+charm|charm/.test(m),
+    answer: 'lucky_charm_numbers'
+  },
+  {
+    test: m => /same\s+(?:lucky\s+)?charm|duplicate\s+charm|two\s+(?:players|people).*charm/.test(m),
     answer:
       '**Duplicates are fine** — two players can both pick **4**. On a rescue roll you only need **your** number on **your** dice.'
   },
@@ -610,9 +755,12 @@ const VOLCANO_VENT_BEADS_QA = [
       '**Keep them separate:** **Vent tokens (3)** track elimination — lose one on a failed rescue. **Bowl beads** are optional pretend **antes** — they do not replace Vent tokens unless your table writes a custom rule (not recommended).'
   },
   {
-    test: m => /how\s+much\s+(?:do\s+)?(?:i|we)\s+put|how\s+many\s+(?:bead|button).*pot|size\s+of\s+(?:the\s+)?ante/.test(m),
-    answer:
-      '**Tiny and equal** — often **one craft bead per player** each time the countdown **resets to 6**. Write the amount on a napkin **before** the first roll so nobody argues later.'
+    test: m => /pot\s+size|size\s+of\s+(?:the\s+)?pot|how\s+(?:big|large)\s+(?:is\s+)?(?:the\s+)?(?:pot|bowl)/.test(m)
+      || /one\s+ante\s+per\s+reset|ante\s+per\s+(?:countdown\s+)?reset/.test(m)
+      || /how\s+much\s+(?:do\s+)?(?:i|we|each\s+player)\s+(?:put|ante|drop)/.test(m) && /reset|pot|bowl|ante/.test(m)
+      || /how\s+many\s+(?:bead|button|token).*(?:per\s+reset|each\s+reset|every\s+reset)/.test(m)
+      || /how\s+much\s+(?:do\s+)?(?:i|we)\s+put|how\s+many\s+(?:bead|button).*pot|size\s+of\s+(?:the\s+)?ante/.test(m),
+    answer: 'pot_size'
   },
   {
     test: m => /what\s+goes\s+in\s+(?:the\s+)?(?:bowl|pot)|shared\s+bowl|bowl\s+for/.test(m),
@@ -682,6 +830,78 @@ function formatFirstRollVentMarkdown() {
   );
 }
 
+function formatLuckyCharmNumbersMarkdown() {
+  return (
+    '**Lucky charm numbers: 1 through 6 only.**\n\n'
+    + 'A standard die face — **not 0**, **not 7+**, not colors or symbols.\n\n'
+    + 'Ask **"how do I choose my lucky charm?"** for favorites, rolling a die, or going around the table.\n'
+    + 'Ask **"what is a lucky charm?"** for when it saves you on the **Vent**.'
+  );
+}
+
+function formatLuckyCharmDuplicateMarkdown() {
+  return (
+    '**Same lucky charm? Totally fine.**\n\n'
+    + 'Two players can both pick **4** — on a rescue roll you only need **your** number on **your** dice. No stealing someone else\'s charm.\n\n'
+    + 'Everyone still picks **1 through 6** at setup and writes it on paper.'
+  );
+}
+
+function formatLuckyCharmOverviewMarkdown() {
+  return (
+    '**Lucky charm (quick overview)**\n\n'
+    + 'Each player picks **one number from 1 through 6** at setup, writes it on **paper**, and keeps it the whole game.\n\n'
+    + 'When you **miss** a countdown target, your **Vent rescue roll** must show your charm or you lose **1 token**.\n\n'
+    + '**Ask a specific charm question:**\n'
+    + '• **"how do I choose my lucky charm?"** — picking logic & favorites\n'
+    + '• **"can my lucky charm be my favorite number?"**\n'
+    + '• **"what happens if I roll my lucky charm on the Vent?"**\n'
+    + '• **"who gets the dice after a lucky charm save?"**\n'
+    + '• **"can two players have the same lucky charm?"**\n'
+    + '• **"lucky charm lore"** — table story\n\n'
+    + '*Charms are not scoring — only Vent tokens count toward winning.*'
+  );
+}
+
+function formatLuckyCharmTrackingMarkdown() {
+  return (
+    '**Keeping track of lucky charms** (this is **not** scoring):\n\n'
+    + '• At setup, each player picks **1 through 6** and keeps it the whole game.\n'
+    + '• **Everyone writes name + number on paper** — the group remembers who has which charm.\n'
+    + '• No scoreboard needed — charms matter only on **Vent rescue rolls**.\n\n'
+    + 'Duplicates are fine — two players can both be **4**.'
+  );
+}
+
+function formatLuckyCharmFavoriteNumberMarkdown() {
+  return (
+    '**Yes — your lucky charm can be your favorite number.**\n\n'
+    + '**Must still be 1 through 6** — a face on a standard die. Love **7** or **12**? Pick a **1–6** stand-in your table agrees on (many say **6** for “lucky seven,” or use birthday month/day squeezed to **1–6**).\n\n'
+    + '**Regular group:** totally normal to use the **same favorite every game night** — Alex always **5**, Sam always **2**. Still **say it and write it on paper each session** so nobody forgets mid-countdown.\n\n'
+    + '**When it matters:** only on **Vent rescue rolls** — not on normal tribute rolls.\n\n'
+    + '**Duplicates OK** — two players can both pick **4**.\n\n'
+    + 'Ask **"how do I choose my lucky charm?"** for other picking ways (roll a die, go around the table, etc.).'
+  );
+}
+
+function formatLuckyCharmChooseMarkdown() {
+  return (
+    '**How to choose your lucky charm**\n\n'
+    + '**Must be 1 through 6** — the faces on a standard die. Not **0**, not **7+**, not colors or symbols. If it cannot show on a d6, it cannot be your charm.\n\n'
+    + '**When:** pick **once at setup**, **before the first roll**, and **keep it the whole game**.\n\n'
+    + '**How tables usually choose:**\n'
+    + '• **Favorite number** — totally fine (many regular groups do this every week).\n'
+    + '• **Roll one die** and keep what you get.\n'
+    + '• **Youngest / host picks first** — go around the table.\n'
+    + '• **Birthday trick** — month or day, but squeeze it to **1–6** if needed.\n\n'
+    + '**Everyone writes name + number on paper** so the group remembers who picked what.\n\n'
+    + '**Regular group? Same number every game night?** **Yes — common and OK.** '
+    + 'Alex can always be **5**, Sam always **2**. You still **say it and write it each night** so nobody forgets mid-countdown. '
+    + 'You *may* change next game if you want — the only hard rule is **1–6 at setup** for that game.\n\n'
+    + '**Duplicates OK** — two players can both be **4**; on a rescue you only need **your** number on **your** dice.'
+  );
+}
+
 function formatLuckyCharmDiceResetMarkdown() {
   return (
     '**Who gets the 6 dice after a lucky-charm save?**\n\n'
@@ -689,6 +909,17 @@ function formatLuckyCharmDiceResetMarkdown() {
     + '**Next player** in turn order picks up all **6 dice** and rolls for tribute **6**.\n\n'
     + 'You rescued yourself (no token lost) — then **pass the turn**. '
     + 'Same if you **fail** the rescue: lose a token, all **6 dice** back, still the **next player** at **6**.'
+  );
+}
+
+function formatPotSizeMarkdown() {
+  return (
+    '**Pot size vs ante size**\n\n'
+    + 'There is **no fixed pot size** — the shared bowl **grows** as play goes on.\n\n'
+    + '**Default ante (write on the napkin):** **1 craft token per player** each time the countdown **resets to 6** — that is **one ante per reset per player**, not one bead for the whole table.\n\n'
+    + '**Each reset adds:** (number of players) × (agreed ante). Example: **4 players**, **1 pony bead** each → **4 beads** into the pot that reset.\n\n'
+    + '**When is a reset?** Game start, after tribute **1**, or after any **Vent** (save or sacrifice) — when all **6 dice** come back and a fresh **6→1** chain starts. **Not every roll.**\n\n'
+    + '**Token size can mismatch** (big buttons, tiny beads) — everyone still antes the **same count**. **House Rule 1** returns every ante at wrap-up; **House Rule 2** winner keeps whatever accumulated.'
   );
 }
 
@@ -703,6 +934,7 @@ function formatAntesInstructionsMarkdown() {
   a.how.forEach(line => { out += `• ${line}\n`; });
   out += '\n**4 — After the game:**\n';
   a.wrapUp.forEach(line => { out += `• ${line}\n`; });
+  out += '\n**Pot size:** no fixed bowl — **1 craft token per player per reset** is the usual ante; the pot **grows** each reset. Ask **"what is the pot size?"** for the math.';
   out += '\n**Not side bets** — antes mark a **new chain at 6**, not every roll. Ask **"antes or side bets?"** if you want the difference.';
   return out;
 }
@@ -731,6 +963,9 @@ function matchBasicRuleQuestion(m) {
       if (item.answer === 'how_we_decide') return formatHowWeDecideMarkdown();
       if (item.answer === 'rounds') return formatRoundsAnswerMarkdown();
       if (item.answer === 'lucky_charm_dice_reset') return formatLuckyCharmDiceResetMarkdown();
+      if (item.answer === 'lucky_charm_favorite') return formatLuckyCharmFavoriteNumberMarkdown();
+      if (item.answer === 'lucky_charm_numbers') return formatLuckyCharmNumbersMarkdown();
+      if (item.answer === 'lucky_charm_choose') return formatLuckyCharmChooseMarkdown();
       if (item.answer === 'vent_charm_miss_clarify') return formatVentCharmMissClarificationMarkdown();
       if (item.answer === 'first_roll_vent') return formatFirstRollVentMarkdown();
       return item.answer;
@@ -742,7 +977,10 @@ function matchBasicRuleQuestion(m) {
 function matchButtonsBeadsQuestion(m) {
   const t = String(m || '').toLowerCase();
   for (const item of VOLCANO_VENT_BEADS_QA) {
-    if (item.test(t)) return item.answer;
+    if (item.test(t)) {
+      if (item.answer === 'pot_size') return formatPotSizeMarkdown();
+      return item.answer;
+    }
   }
   return null;
 }
@@ -832,7 +1070,7 @@ function formatBettingFollowUpNext(subtopic) {
 function formatConciseButtonsBeadsIntro() {
   const f = VOLCANO_VENT_BETTING.playFit;
   return (
-    '**Craft tokens = pretend spice for 18+ tables.** Beads, buttons, seeds, pebbles, clips, marbles, jacks in a shared bowl — **never poker chips, cash, or gold/silver**.\n\n'
+    '**Craft tokens = pretend spice for 18+ tables.** **Wood & glass beads** preferred; buttons, seeds, pebbles, clips, marbles, jacks in a shared bowl — **never poker chips, cash, gold/silver, or precious gems**.\n\n'
     + `${f.summary}\n\n`
     + '**Quick default:** small **antes** when the countdown **resets to 6**, then **House Rule 1** — **everyone gets everything back**. '
     + 'Keeper pots (**House Rule 2**) only after a **unanimous napkin vote** where **every player takes part** — ask **"how do we decide?"** for the steps.'
@@ -840,9 +1078,12 @@ function formatConciseButtonsBeadsIntro() {
 }
 
 function formatBeadsWorkMarkdown() {
+  const beadRule = VOLCANO_VENT_CRAFT_TOKENS.beadValueRule || '';
   return (
-    '**Beads** are **craft pretend tokens** — pony beads, wood beads, junk-drawer mismatches. **Not gold, not poker chips, not cash.**\n\n'
-    + 'They go in a **shared bowl** for optional **antes** when the countdown **resets to 6**. Your **3 Vent tokens** still track who is in — bowl beads are separate pretend spice.\n\n'
+    '**Beads** are **craft pretend tokens** for optional **18+** antes — not cash, not poker chips.\n\n'
+    + `${beadRule}\n\n`
+    + '**Preferred:** **wood beads** and **glass beads** (pony beads, craft-shop strands). **Regular stone beads** like **turquoise** or plain craft stone are OK — just not jewelry or precious gems.\n\n'
+    + 'They go in a **shared bowl** when the countdown **resets to 6**. Your **3 Vent tokens** still track who is in — bowl beads are separate pretend spice.\n\n'
     + '**Default:** **House Rule 1** — everyone gets every bead back after play. Keeper only with a **unanimous napkin vote** before the first roll.\n\n'
     + 'Want a **mini example**? Reply **yes** or **sure** — or ask **"how do antes work?"**, **"how do buttons work?"**, or **"how do we decide?"** next.'
   );
@@ -956,6 +1197,7 @@ function formatFullRulesMarkdown() {
 function formatCraftTokensMarkdown() {
   const c = VOLCANO_VENT_CRAFT_TOKENS;
   let out = `**What can be used for pretend bets & antes:** ${c.summary}\n\n`;
+  if (c.beadValueRule) out += `${c.beadValueRule}\n\n`;
   if (c.categories) {
     c.categories.forEach(cat => { out += `**${cat.name}** — ${cat.text}\n\n`; });
   }
@@ -996,6 +1238,9 @@ if (typeof globalThis !== 'undefined') {
   globalThis.matchLoreQuestion = matchLoreQuestion;
   globalThis.matchLoreTopic = matchLoreTopic;
   globalThis.formatVolcanoVentLoreMarkdown = formatVolcanoVentLoreMarkdown;
+  globalThis.VOLCANO_VENT_TABLE_JOKES = VOLCANO_VENT_TABLE_JOKES;
+  globalThis.pickVolcanoVentTableJoke = pickVolcanoVentTableJoke;
+  globalThis.formatTableJokeLine = formatTableJokeLine;
   globalThis.VOLCANO_VENT_RULEBOOK_SOURCES = VOLCANO_VENT_RULEBOOK_SOURCES;
   globalThis.formatFullRulesMarkdown = formatFullRulesMarkdown;
   globalThis.formatRulebookSourceMarkdown = formatRulebookSourceMarkdown;
@@ -1014,11 +1259,18 @@ if (typeof globalThis !== 'undefined') {
   globalThis.formatHowWeDecideMarkdown = formatHowWeDecideMarkdown;
   globalThis.formatRoundsAnswerMarkdown = formatRoundsAnswerMarkdown;
   globalThis.formatAntesInstructionsMarkdown = formatAntesInstructionsMarkdown;
+  globalThis.formatPotSizeMarkdown = formatPotSizeMarkdown;
   globalThis.formatBettingFollowUpMenu = formatBettingFollowUpMenu;
   globalThis.formatBettingFollowUpNext = formatBettingFollowUpNext;
   globalThis.formatPretendBetSafetyAdviceMarkdown = formatPretendBetSafetyAdviceMarkdown;
   globalThis.VOLCANO_VENT_BETTING_FOLLOWUP = VOLCANO_VENT_BETTING_FOLLOWUP;
   globalThis.formatLuckyCharmDiceResetMarkdown = formatLuckyCharmDiceResetMarkdown;
+  globalThis.formatLuckyCharmChooseMarkdown = formatLuckyCharmChooseMarkdown;
+  globalThis.formatLuckyCharmFavoriteNumberMarkdown = formatLuckyCharmFavoriteNumberMarkdown;
+  globalThis.formatLuckyCharmNumbersMarkdown = formatLuckyCharmNumbersMarkdown;
+  globalThis.formatLuckyCharmDuplicateMarkdown = formatLuckyCharmDuplicateMarkdown;
+  globalThis.formatLuckyCharmOverviewMarkdown = formatLuckyCharmOverviewMarkdown;
+  globalThis.formatLuckyCharmTrackingMarkdown = formatLuckyCharmTrackingMarkdown;
   globalThis.formatVentCharmMissClarificationMarkdown = formatVentCharmMissClarificationMarkdown;
   globalThis.formatFirstRollVentMarkdown = formatFirstRollVentMarkdown;
   globalThis.VOLCANO_VENT_NAPKIN_VOTE = VOLCANO_VENT_NAPKIN_VOTE;

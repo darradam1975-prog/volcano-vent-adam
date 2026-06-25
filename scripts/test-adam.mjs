@@ -324,7 +324,10 @@ check('compound vent rules vs lore', () => {
 check('antes instructions clear', /Before play|shared bowl|craft bead/i.test(adam.respond('clear instructions on how antes work')));
 check('house rules concise not wall', adam.respond('house rules for pretend bets').length < 1200);
 check('no gold beads', /not.*gold|craft|skip gold/i.test(adam.respond('can I use gold beads for the pot?')));
+check('no precious gem beads', /precious|diamond|ruby|sapphire|emerald|skip gold/i.test(adam.respond('can we use diamond beads for antes?')));
 localStorage.setItem('adam-birthday', JSON.stringify({ month: 1, day: 1, year: 1990 }));
+check('turquoise beads ok', /turquoise|regular stone|wood|glass/i.test(adam.respond('can we use turquoise stone beads for the pot?')));
+check('bead value wood glass preferred', /wood.*glass|glass.*wood|preferred/i.test(adam.respond('how do beads work?')));
 check('seeds and beans antes', /seed|bean|dried|sunflower|pumpkin/i.test(adam.respond('can we use seeds and beans for antes')));
 check('no poker chips marbles', /never.*poker|marble|jack/i.test(adam.respond('can I use poker chips for antes')));
 check('craft token list expanded', /Paper clips|Seeds|Marbles|pebble/i.test(adam.respond('what can we use for antes')));
