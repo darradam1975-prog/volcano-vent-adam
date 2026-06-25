@@ -65,6 +65,100 @@ const VOLCANO_VENT_GAME = {
   }
 };
 
+/**
+ * Table lore & terminology — the Volcano metaphor (flavor, not extra rules).
+ */
+const VOLCANO_VENT_LORE = {
+  tagline: 'A home-table story: six dice, a shared volcano, and a dangerous rim called the Vent.',
+  whyVent:
+    '**Why "the Vent"?** On a real volcano, the **vent** is the opening where heat and pressure escape — the throat of the mountain. In this game, when you **miss a countdown tribute**, you are not inside the lava yet; you are on the **narrow rim** right over that opening. One shaky **rescue roll** decides whether your **lucky charm** pulls you back or you **sacrifice a token** into the heat.',
+  ventEdge:
+    '**On the edge?** Yes — that is the picture. You are standing on the **Vent lip** with dice still in your hand for the **rescue reroll**. The table might say *"you are on the Vent"* the way hikers say *"you are on the ledge."* You are one good roll from safety, one bad roll from losing a token.',
+  countdown:
+    '**What is the countdown?** The numbers **6→5→4→3→2→1** are **rings down the volcano** — each tribute is another step deeper into the cone. Roll a **6** (or dice that sum to 6) and you have paid the top shelf; pass the remaining dice and the next player pays **5**, then **4**, and so on. After **1**, you have touched the bottom of this descent — all **6 dice** climb back to the rim and the **next player** starts a fresh climb at **6**.',
+  crawling:
+    '**Crawling down the volcano?** That is the **table story**, not a physical crawl. Nobody leaves their chair — but together you are **descending** the mountain number by number. Miss a step and you slip onto the **Vent edge**; make every tribute and the shared dice pool **crawls deeper** until someone reaches **1** or a miss sends someone to the Vent.',
+  name:
+    '**Volcano Vent Dice** = **Volcano** (the shared mountain you descend) + **Vent** (the dangerous rim when you miss) + **Dice** (the tributes you offer each step). It is a family scoring game dressed in volcano language so misses feel dramatic, not punitive.',
+  luckyCharm:
+    '**Lucky charm lore:** Pick **1–6** once and write it on paper — that is your **pocket charm** for the whole night. It does not help on normal tribute rolls; it only answers when you are **on the Vent** and take the **rescue reroll**. Roll your charm there and the table imagines you **grabbed the rim** and climbed back.',
+  tokens:
+    '**Tokens & sacrifice:** Your **3 tokens** are **offerings** — beads, buttons, or chips from the bowl. Fail the rescue and one token **drops into the Vent** (off the table or into a discard pile). Last player still holding tokens wins — everyone else has been swallowed by the mountain.',
+  overview:
+    '**Volcano Vent lore in one breath:** The table shares **one volcano** and **six dice**. Each countdown number is a **step down the cone**. Miss → stand on the **Vent rim** → **rescue reroll** with your **lucky charm** → safe or sacrifice a **token**. After **1**, climb back to the rim at **6** and the next player leads the descent.'
+};
+
+function matchLoreTopic(message) {
+  const m = String(message || '').toLowerCase().trim();
+  if (!m) return null;
+  if (/(?:why|how come).*(?:call(?:ed)?|name(?:d)?).*(?:the\s+)?vent/.test(m)
+    || /why.*vent.*(?:call|name|mean)/.test(m)
+    || /what\s+(?:does|do)\s+(?:the\s+)?vent\s+mean/.test(m)) {
+    return 'whyVent';
+  }
+  if (/(?:edge|rim|lip|ledge).*(?:volcano|vent)/.test(m)
+    || /(?:on|at)\s+the\s+edge/.test(m)
+    || /standing\s+on\s+the\s+vent/.test(m)) {
+    return 'ventEdge';
+  }
+  if (/crawl(?:ing)?\s+(?:down|into).*(?:volcano|vent|mountain|countdown)/.test(m)
+    || /(?:descend|climb|going|travel|walk|step)(?:ing|s)?\s+(?:down|into|deeper).*(?:volcano|vent|mountain|cone)/.test(m)
+    || /down\s+the\s+volcano/.test(m)) {
+    return 'crawling';
+  }
+  if (/(?:what\s+(?:is|does)|explain).*(?:the\s+)?countdown\s+(?:mean|about|represent|story)/.test(m)
+    || /countdown.*(?:lore|metaphor|story|theme)/.test(m)
+    || /(?:rings?|steps?|shelves?).*(?:volcano|countdown)/.test(m)) {
+    return 'countdown';
+  }
+  if (/lucky\s+charm.*(?:lore|story|mean|metaphor)/.test(m)
+    || /why.*lucky\s+charm/.test(m)) {
+    return 'luckyCharm';
+  }
+  if (/token.*(?:lore|sacrifice|metaphor|story|mean)/.test(m)
+    || /sacrifice.*(?:token|vent|volcano)/.test(m)) {
+    return 'tokens';
+  }
+  if (/why.*volcano\s+vent(?:\s+dice)?/.test(m)
+    || /volcano\s+vent(?:\s+dice)?.*(?:mean|name|called)/.test(m)
+    || /what\s+is\s+volcano\s+vent(?:\s+dice)?\s*(?:about|mean)?$/.test(m)) {
+    return 'name';
+  }
+  if (/(?:lore|terminology|theme|metaphor|flavor|flavour|story|table\s+story)/.test(m)
+    || /volcano\s+vent\s+lore/.test(m)
+    || /tell\s+me\s+(?:the\s+)?(?:lore|story)/.test(m)) {
+    return 'overview';
+  }
+  return null;
+}
+
+function matchLoreQuestion(message) {
+  return !!matchLoreTopic(message);
+}
+
+function formatVolcanoVentLoreMarkdown(topic) {
+  const L = VOLCANO_VENT_LORE;
+  const key = topic && L[topic] ? topic : 'overview';
+  const body = L[key] || L.overview;
+  const labels = {
+    whyVent: 'Why "the Vent"?',
+    ventEdge: 'On the Vent edge',
+    countdown: 'The countdown',
+    crawling: 'Crawling down the volcano',
+    name: 'Why "Volcano Vent Dice"?',
+    luckyCharm: 'Lucky charm',
+    tokens: 'Tokens & sacrifice',
+    overview: 'Volcano Vent lore'
+  };
+  let out = `**${labels[key] || 'Volcano Vent lore'}**\n\n${body}`;
+  if (key !== 'overview') {
+    out += '\n\n**Try next:** "What does the countdown mean?" · "Are we on the edge of the volcano?" · **"volcano vent lore"** for the full picture.';
+  } else {
+    out += '\n\nAsk about **why the Vent**, the **countdown**, **crawling down the volcano**, or **lucky charm lore** — flavor only; rules stay the same.';
+  }
+  return out;
+}
+
 /** Gentle support line — not a lecture; for buttons/beads chat when things feel heavy. */
 const VOLCANO_VENT_HELPLINE = {
   name: '1-800-GAMBLER',
@@ -897,7 +991,11 @@ if (typeof globalThis !== 'undefined') {
   globalThis.VOLCANO_VENT_GAME = VOLCANO_VENT_GAME;
   globalThis.VOLCANO_VENT_BETTING = VOLCANO_VENT_BETTING;
   globalThis.VOLCANO_VENT_HELPLINE = VOLCANO_VENT_HELPLINE;
+  globalThis.VOLCANO_VENT_LORE = VOLCANO_VENT_LORE;
   globalThis.VOLCANO_VENT_CRAFT_TOKENS = VOLCANO_VENT_CRAFT_TOKENS;
+  globalThis.matchLoreQuestion = matchLoreQuestion;
+  globalThis.matchLoreTopic = matchLoreTopic;
+  globalThis.formatVolcanoVentLoreMarkdown = formatVolcanoVentLoreMarkdown;
   globalThis.VOLCANO_VENT_RULEBOOK_SOURCES = VOLCANO_VENT_RULEBOOK_SOURCES;
   globalThis.formatFullRulesMarkdown = formatFullRulesMarkdown;
   globalThis.formatRulebookSourceMarkdown = formatRulebookSourceMarkdown;

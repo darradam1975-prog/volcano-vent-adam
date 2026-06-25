@@ -250,7 +250,13 @@ check('no chasing losses', /no chasing|return-all|do not.*raise/i.test(adam.resp
 check('no double or nothing', /no double|double-or-nothing|not a casino/i.test(adam.respond('double or nothing on the ante bowl')));
 check('avoid house rule 2', /avoid House Rule 2|return all|chasing|double-or-nothing/i.test(adam.respond('when should we avoid House Rule 2')));
 check('teach me not lecture', /one breath|teach by.*question|not a lecture/i.test(adam.respond('teach me')));
-check('teach menu categories', /Countdown|House rules|Vent|Game modes/i.test(adam.respond('teach menu')));
+check('teach menu categories', /Countdown|House rules|Vent|Lore|Game modes/i.test(adam.respond('teach menu')));
+check('lore why vent', /vent.*opening|crater|rim|Why/i.test(adam.respond('why is it called the vent')));
+check('lore vent edge', /edge|rim|lip|Vent/i.test(adam.respond('are you on the edge of the volcano')));
+check('lore countdown meaning', /rings|6.*5.*4|step|volcano/i.test(adam.respond('what does the countdown mean')));
+check('lore crawling down', /descend|crawl|table story|step/i.test(adam.respond('are we crawling down the volcano')));
+check('lore overview', /shared volcano|6→1|Vent/i.test(adam.respond('volcano vent lore')));
+check('help mentions lore', /Lore|Vent|countdown/i.test(adam.respond('help')));
 adam.respond('teach me');
 check('teach question flow', /6→5|Try next/i.test(adam.respond('how does the countdown work?')));
 check('teach gentle vent', /second.*failed rescue|Gentle Vent/i.test(adam.respond('what is gentle Vent?')));

@@ -130,6 +130,7 @@ const adam = {
     if (this._isWhatNext(m)) return this._whatNext();
     if (this._isWho(m)) return this._who();
     if (this._isGptSetupQuestion(m)) return this._gptSetupGuide(m);
+    if (this._isLoreQuestion(m)) return this._lore(m);
     if (this._isOtherDiceGameQuestion(m)) return this._otherDiceGameRedirect();
     if (/set\s+birthday|save\s+birthday|my\s+birthday/.test(m)) {
       adamAgeVerifier.openModal();
@@ -786,6 +787,17 @@ const adam = {
       : 'Open **Settings ⚙️** → **GPT** to paste an OpenAI API key (sk-…) and add billing credits at platform.openai.com/account/billing.';
   },
 
+  _isLoreQuestion(m) {
+    return typeof matchLoreQuestion === 'function' && matchLoreQuestion(m);
+  },
+
+  _lore(m) {
+    const topic = typeof matchLoreTopic === 'function' ? matchLoreTopic(m) : 'overview';
+    return typeof formatVolcanoVentLoreMarkdown === 'function'
+      ? formatVolcanoVentLoreMarkdown(topic || 'overview')
+      : VOLCANO_VENT_LORE?.overview || 'Ask about **why the Vent**, the **countdown**, or **volcano vent lore**.';
+  },
+
   _isOtherDiceGameQuestion(m) {
     return (
       /\b(?:yahtzee|yatzy|craps|farkle|liar'?s?\s+dice|bunco|bunko|pig\s+dice|tenzi|zilch|balut|chuck-?a-?luck|sic\s+bo|street\s+craps|shut\s+the\s+box|left\s+right\s+center|lcr)\b/.test(m)
@@ -823,6 +835,7 @@ const adam = {
     out += '• **Teach menu** — plain-English starters for all modes & house rules\n';
     out += '• **Full rules** — long version only if you ask\n';
     out += '• **Variants** — paper lives, short game, gentle Vent\n';
+    out += '• **Lore** — why the **Vent**, countdown story, crawling down the volcano\n';
     if (typeof adamLlmSettings !== 'undefined' && adamLlmSettings.isUsable()) {
       out += '• **GPT** — on (plain-English answers)\n';
     } else {

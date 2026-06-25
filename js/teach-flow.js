@@ -24,6 +24,11 @@ const VOLCANO_VENT_TEACH = {
       starters: ['What happens on the Vent?', 'What is a rescue roll?']
     },
     {
+      id: 'lore',
+      label: 'Lore & terms',
+      starters: ['Why is it called the Vent?', 'What does the countdown mean?', 'Volcano vent lore']
+    },
+    {
       id: 'lucky_charm',
       label: 'Lucky charm',
       starters: ['What is a lucky charm?', 'Who rolls after a lucky charm save?']
@@ -57,7 +62,8 @@ const VOLCANO_VENT_TEACH = {
   nextByCategory: {
     basics: '**Try next:** "How does the countdown work?"',
     countdown: '**Try next:** "What happens on the Vent?"',
-    vent: '**Try next:** "What is a lucky charm?"',
+    vent: '**Try next:** "Why is it called the Vent?" or "What is a lucky charm?"',
+    lore: '**Try next:** "Are we crawling down the volcano?" or "How does the countdown work?" (rules)',
     lucky_charm: '**Try next:** "How does scoring work?"',
     scoring: '**Try next:** "Can kids play?" or house-rules questions if **18+**.',
     variants: '**Try next:** "What is House Rule 1?" (pretend bets, **18+** only).',
@@ -94,6 +100,16 @@ const VOLCANO_VENT_TEACH_QA = [
     answer: '**Yes — first-roll Vent is real.** Open with all **6** for tribute **6**; miss → **Vent**. **Rescue reroll** all **6** again. Lucky charm on **rescue** saves you; miss rescue → **lose 1 token**.' },
   { cat: 'vent', test: m => /rescue\s+roll/.test(m),
     answer: '**Reroll** the same number of dice you failed with. Your **lucky charm** on **this rescue roll** → safe. No charm → lose **1 token**.' },
+  { cat: 'lore', test: m => /why.*(?:call|name).*(?:the\s+)?vent|what\s+(?:does|do)\s+(?:the\s+)?vent\s+mean/.test(m),
+    answer: '**The Vent** is the crater **opening** — miss a tribute and you stand on that **rim**. **Rescue reroll** = grab the ledge with your **lucky charm** or **sacrifice a token**.' },
+  { cat: 'lore', test: m => /(?:edge|rim).*(?:volcano|vent)|on\s+the\s+edge/.test(m),
+    answer: '**Yes — the edge.** On the Vent **lip**, one **rescue roll** from safety or a **token** into the heat. Table flavor; same rules.' },
+  { cat: 'lore', test: m => /countdown.*(?:mean|about|story)|what\s+(?:is|does)\s+(?:the\s+)?countdown\s+(?:mean|about)/.test(m),
+    answer: 'Countdown **6→1** = **rings down the volcano** — each tribute is a step deeper. After **1**, dice climb to the **rim** at **6** for the next player.' },
+  { cat: 'lore', test: m => /crawl|descend|down\s+the\s+volcano/.test(m),
+    answer: '**Table story:** you **descend** the cone number by number — not literal crawling. Miss a step → **Vent edge**; make every tribute → shared dice pool goes deeper.' },
+  { cat: 'lore', test: m => /lore|terminology|volcano\s+vent\s+lore|tell\s+me\s+the\s+story/.test(m),
+    answer: '**One shared volcano, six dice.** Descend **6→1**; miss → **Vent rim** → **lucky charm** rescue or **token** sacrifice. Last tokens wins.' },
   { cat: 'lucky_charm', test: m => /what\s+(?:is\s+)?(?:a\s+)?lucky\s+charm|charm\s+number/.test(m),
     answer: 'Pick **1–6** at setup, write on **paper**, keep all game. Matters on **Vent** rescues only.' },
   { cat: 'lucky_charm', test: m => /who\s+(?:gets?|rolls?).*(?:6\s+dice|dice|restart)|lucky\s+charm.*who/.test(m),
