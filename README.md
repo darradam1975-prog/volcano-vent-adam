@@ -61,7 +61,7 @@ node scripts/test-share-view.mjs
 
 Pushes to `main` deploy automatically via [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
-First time: in the repo on GitHub go to **Settings → Pages** and set source to **GitHub Actions** (if not already enabled).
+If the live link 404s: open **Settings → Pages** on the repo and confirm **Source = GitHub Actions**, then re-run the **Deploy GitHub Pages** workflow under **Actions**.
 
 ## Project layout
 
