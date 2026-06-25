@@ -366,6 +366,7 @@ const adamConversations = {
   },
 
   syncEndpoint() {
+    if (typeof adamSite !== 'undefined' && !adamSite.hasCloudBackend) return null;
     if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
       return 'https://volcano-vent-adam.netlify.app/.netlify/functions/sync';
     }
@@ -410,6 +411,7 @@ const adamConversations = {
   },
 
   async pushToCloud({ quiet } = {}) {
+    if (!this.syncEndpoint()) return { ok: false, reason: 'no-cloud-backend' };
     const syncId = this.getSyncId();
     if (!syncId) return { ok: false, reason: 'no-sync-id' };
     this._snapshotAdamState();
@@ -442,6 +444,7 @@ const adamConversations = {
   },
 
   async pullFromCloud({ quiet, initial, skipUi, keepActiveId } = {}) {
+    if (!this.syncEndpoint()) return { ok: false, reason: 'no-cloud-backend' };
     const syncId = this.getSyncId();
     if (!syncId) return { ok: false, reason: 'no-sync-id' };
     const res = await fetch(
@@ -559,6 +562,10 @@ const adamConversations = {
     const id = this.getSyncId();
     const el = document.getElementById('sync-hint');
     if (!el) return;
+    if (typeof adamSite !== 'undefined' && !adamSite.hasCloudBackend) {
+      el.textContent = 'Saved on this device — use Export / Import to move chats (GitHub Pages)';
+      return;
+    }
     el.textContent = id
       ? `Your Sync ID — private sync across your devices only`
       : 'Private on this device — never shared with other users';

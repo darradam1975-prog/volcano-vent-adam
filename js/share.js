@@ -5,6 +5,7 @@ const adamShare = {
   _lastUrl: '',
 
   endpoint() {
+    if (typeof adamSite !== 'undefined' && !adamSite.hasCloudBackend) return null;
     if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
       return 'https://volcano-vent-adam.netlify.app/.netlify/functions/share';
     }
@@ -12,13 +13,21 @@ const adamShare = {
   },
 
   siteOrigin() {
-    if (typeof window === 'undefined') return 'https://volcano-vent-adam.netlify.app';
-    if (window.location?.protocol === 'file:') return 'https://volcano-vent-adam.netlify.app';
+    if (typeof window === 'undefined') return 'https://darradam1975-prog.github.io/volcano-vent-adam';
+    if (window.location?.protocol === 'file:') return 'http://localhost:8765';
     return window.location.origin;
   },
 
   buildShareUrl(shareId) {
+    if (typeof window !== 'undefined' && typeof adamSite !== 'undefined') {
+      return `${window.location.origin}${adamSite.shareViewUrl(shareId)}`;
+    }
     return `${this.siteOrigin()}/s/${encodeURIComponent(shareId)}`;
+  },
+
+  readEndpoint() {
+    if (this.endpoint()) return this.endpoint();
+    return 'https://volcano-vent-adam.netlify.app/.netlify/functions/share';
   },
 
   conversationSnapshot(conv) {
@@ -37,8 +46,14 @@ const adamShare = {
   async publishConversation(conv, { shareId } = {}) {
     const conversation = this.conversationSnapshot(conv);
     if (!conversation) throw new Error('Add at least one message before sharing.');
+    const endpoint = this.endpoint();
+    if (!endpoint) {
+      throw new Error(typeof adamSite !== 'undefined'
+        ? 'Public share links need the Netlify cloud backend. On GitHub Pages, use Export bundle in Settings to copy chats.'
+        : 'Share cloud backend not available');
+    }
 
-    const res = await fetch(this.endpoint(), {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
@@ -66,7 +81,7 @@ const adamShare = {
 
   async fetchShared(shareId) {
     const res = await fetch(
-      `${this.endpoint()}?shareId=${encodeURIComponent(shareId)}&_=${Date.now()}`,
+      `${this.readEndpoint()}?shareId=${encodeURIComponent(shareId)}&_=${Date.now()}`,
       { cache: 'no-store' }
     );
     const data = await res.json().catch(() => ({}));

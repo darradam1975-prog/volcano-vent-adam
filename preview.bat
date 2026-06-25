@@ -1,9 +1,10 @@
 @echo off
-title Adam — Volcano Vent Dice preview
+title Adam The Volcano Vent Bot — local preview
 cd /d "%~dp0"
 echo.
-echo  Starting preview at http://localhost:8765
+echo  Adam The Volcano Vent Bot — local preview
+echo  Opening http://localhost:8765
 echo  Press Ctrl+C to stop.
 echo.
 start "" "http://localhost:8765"
-npx --yes serve . -l 8765
+npm start

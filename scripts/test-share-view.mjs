@@ -13,12 +13,13 @@ function check(label, pass) {
   console.log(pass ? 'OK' : 'FAIL', label);
 }
 
-check('base href root', /<base href="\/">/.test(html));
-check('absolute css path', /href="\/css\/styles\.css/.test(html));
+check('relative css path', /href="css\/styles\.css/.test(html));
+check('site-config script', /js\/site-config\.js/.test(html));
 check('inline fetch api', /\/\.netlify\/functions\/share/.test(html));
 check('no relative js share', !/src="js\/share\.js/.test(html));
 check('finally hides loading', /finally/.test(html) && /loading.*hidden/.test(html));
-check('share id from path', /parts\[0\] === 's'/.test(html));
+check('share id from path', /indexOf\('s'\)/.test(html));
+check('github home links', /share-home-link/.test(html));
 
 console.log('\nPassed', ok, '/', total);
 process.exit(ok === total ? 0 : 1);

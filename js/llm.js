@@ -132,6 +132,7 @@ const adamLlm = {
   },
 
   chatEndpoint() {
+    if (typeof adamSite !== 'undefined' && !adamSite.hasCloudBackend) return null;
     if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
       return 'https://volcano-vent-adam.netlify.app/.netlify/functions/chat';
     }
@@ -139,7 +140,13 @@ const adamLlm = {
   },
 
   async _requestChat(model, apiKey, messages) {
-    const res = await fetch(this.chatEndpoint(), {
+    const endpoint = this.chatEndpoint();
+    if (!endpoint) {
+      throw new Error(typeof adamSite !== 'undefined'
+        ? adamSite.cloudUnavailableMessage()
+        : 'GPT cloud proxy not available on this host');
+    }
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, apiKey, messages })
