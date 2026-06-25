@@ -6,7 +6,7 @@
  *
  * Leave empty until deployed — rule-based Adam still works fully.
  */
-const ADAM_CLOUD_API_BASE = '';
+const ADAM_CLOUD_API_BASE = 'https://volcano-vent-adam-api.darradam1975.workers.dev';
 
 if (typeof globalThis !== 'undefined') {
   globalThis.ADAM_CLOUD_API_BASE = ADAM_CLOUD_API_BASE;
