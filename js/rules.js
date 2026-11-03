@@ -1073,6 +1073,23 @@ function formatGameLogicFacts() {
   return VOLCANO_VENT_LOGIC.facts;
 }
 
+function volcanoIsNsfw(message) {
+  const m = String(message || '').toLowerCase();
+  if (!m) return false;
+  if (/\b(?:porn|porno|nude|nudes|naked|horny|erotic|nsfw|onlyfans|orgasm|intercourse|fetish|xxx|sexy)\b/.test(m)) return true;
+  if (/\b(?:blow\s*job|hand\s*job|talk\s+dirty|dirty\s+talk|send\s+nudes?)\b/.test(m)) return true;
+  if (/\b(?:have|want|wanna|need)\s+sex\b/.test(m)) return true;
+  if (/\bsex\b/.test(m) && /\b(?:with you|with me|position|video|scene|story)\b/.test(m)) return true;
+  return false;
+}
+
+/** Speech often hears the die face "six" as "sex". This bot does not discuss that. */
+function volcanoHearSix(message) {
+  const raw = String(message || '');
+  if (volcanoIsNsfw(raw)) return raw;
+  return raw.replace(/\bsex\b/gi, (word) => (word[0] === 'S' ? 'Six' : 'six'));
+}
+
 function matchBasicRuleQuestion(m) {
   const t = String(m || '').toLowerCase();
   for (const item of VOLCANO_VENT_BASIC_QA) {
@@ -1371,6 +1388,8 @@ if (typeof globalThis !== 'undefined') {
   globalThis.isGameLogicQuestion = isGameLogicQuestion;
   globalThis.adviseGameLogic = adviseGameLogic;
   globalThis.formatGameLogicFacts = formatGameLogicFacts;
+  globalThis.volcanoIsNsfw = volcanoIsNsfw;
+  globalThis.volcanoHearSix = volcanoHearSix;
   globalThis.matchBasicRuleQuestion = matchBasicRuleQuestion;
   globalThis.matchButtonsBeadsQuestion = matchButtonsBeadsQuestion;
   globalThis.formatKeeperGuidanceMarkdown = formatKeeperGuidanceMarkdown;

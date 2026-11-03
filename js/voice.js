@@ -469,6 +469,9 @@ const adamVoice = {
     const Phrase = window.SpeechRecognitionPhrase;
     if (typeof Phrase !== 'function') return;
     const hints = [
+      ['six', 8],
+      ['roll a six', 6],
+      ['tribute six', 6],
       ['vent', 8],
       ['the vent', 8],
       ['Volcano Vent', 8],
@@ -488,6 +491,8 @@ const adamVoice = {
     if (!t.trim()) return -100;
     let score = 0;
     if (/\bvents?\b/.test(t)) score += 5;
+    if (/\bsix\b/.test(t)) score += 4;
+    if (/\bsex\b/.test(t)) score -= 6;
     if (/\bvolcano\b/.test(t)) score += 2;
     if (/\blucky\s*charms?\b/.test(t)) score += 2;
     if (/\brents?\b|\bbents?\b|\bmoons?\b|\bevents?\b/.test(t)) score -= 4;
@@ -515,7 +520,7 @@ const adamVoice = {
     return word[0] === word[0].toUpperCase() ? next[0].toUpperCase() + next.slice(1) : next;
   },
 
-  _correctHeard(text) {
+  _correctGameWords(text) {
     const raw = String(text || '');
     const gameAsk = /^(?:tell me|what|whats|what's|how|explain|describe|talk|about)\b/i.test(raw.trim());
     const housing = /\b(?:pay|paying|paid|owe|owing|my|monthly|apartment|house|due|for)\s+$/i;
@@ -543,6 +548,15 @@ const adamVoice = {
       }
       return this._asVent(word);
     });
+  },
+
+  _correctHeard(text) {
+    const fixed = this._correctGameWords(text);
+    const nsfw = typeof volcanoIsNsfw === 'function'
+      ? volcanoIsNsfw(fixed)
+      : /\b(?:porn|nude|naked|horny|nsfw|sexy|talk\s+dirty|have\s+sex|want\s+sex)\b/i.test(fixed);
+    if (nsfw) return fixed;
+    return fixed.replace(/\bsex\b/gi, (word) => (word[0] === 'S' ? 'Six' : 'six'));
   },
 
   _isEcho(heard) {

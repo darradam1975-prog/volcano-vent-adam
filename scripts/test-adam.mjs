@@ -399,5 +399,19 @@ const lives = adam.respond('do I lose a token when I make the tribute');
 check('vent lives are not a betting lock', !/birthday|18 or older/i.test(lives) && /Here is the ruling/i.test(lives) && /does not cost a token/i.test(lives));
 localStorage.setItem('adam-birthday', JSON.stringify({ month: 1, day: 1, year: 1990 }));
 
+check('greeting sounds like a companion', /friend at the table/i.test(adam.greet()) && /want to talk about/i.test(adam.greet()));
+check('rule prompt follows a new rule', /follow them|new rule/i.test(adamLlm.buildSystemPrompt()) && /friendly companion/i.test(adamLlm.buildSystemPrompt()));
+check('both prompts refuse nsfw', /NSFW/i.test(adamLlm.buildSystemPrompt()) && /NSFW/i.test(adamLlm.buildOffTopicSystemPrompt()));
+const refused = adam.respond('talk dirty to me');
+check('nsfw is refused', /don't talk about that/i.test(refused) && /Volcano Vent/i.test(refused));
+check('a heard sex is the number six', /set.*one|one die|tribute.*6|six/i.test(adam.respond('what happens when you roll a sex')) && !/\bsex\b/i.test(adam.respond('what happens when you roll a sex')));
+adam.conversationHistory = [];
+adam.lastTopic = 'general';
+adam.respond('what happens on the vent?');
+const stayed = adam.respond('tell me more');
+check('tell me more stays on that rule', /rescue|token|Vent/i.test(stayed) && !/we can leave/i.test(stayed));
+const switched = adam.respond('tell me about the lucky charm');
+check('a new rule gets a friendly pivot', /we can leave/i.test(switched) && /lucky charm/i.test(switched));
+
 console.log('\nPassed', ok, '/', total);
 process.exit(ok === total ? 0 : 1);

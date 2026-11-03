@@ -254,6 +254,14 @@ check('the went is the vent', adamVoice._correctHeard('hit the went') === 'hit t
 check('I went home stays', adamVoice._correctHeard('I went home') === 'I went home');
 check('the event in a sentence is the vent', adamVoice._correctHeard('stand on the event') === 'stand on the vent');
 check('next event stays', adamVoice._correctHeard('the next event') === 'the next event');
+check('a heard sex is six', adamVoice._correctHeard('roll a sex') === 'roll a six');
+check('Sex at the start is Six', adamVoice._correctHeard('Sex') === 'Six');
+check('dirty talk is not rewritten into six', adamVoice._correctHeard('talk dirty to me') === 'talk dirty to me');
+check('six beats sex in the alternatives', adamVoice._bestAlternative({
+  0: { transcript: 'roll a sex' },
+  1: { transcript: 'roll a six' },
+  length: 2
+}) === 'roll a six');
 const savedPause = adamVoice._endPause;
 adamVoice._endPause = 5000;
 check('a finished line waits', adamVoice._pauseFor('what is the vent') === 5000);

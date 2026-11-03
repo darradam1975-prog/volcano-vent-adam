@@ -157,8 +157,11 @@ function formatMarkdown(text) {
 
 async function sendMessage() {
   const input = document.getElementById('chat-input');
-  const text = input?.value?.trim();
+  let text = input?.value?.trim();
   if (!text) return;
+  if (typeof volcanoHearSix === 'function' && !(typeof volcanoIsNsfw === 'function' && volcanoIsNsfw(text))) {
+    text = volcanoHearSix(text);
+  }
 
   const fromVoice = typeof adamVoice !== 'undefined'
     && (adamVoice._session || adamVoice._phase === 'thinking' || adamVoice._phase === 'speaking');

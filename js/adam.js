@@ -22,34 +22,96 @@ const adam = {
     const setupNote = !llmUsable && typeof adamLlmSettings !== 'undefined'
       ? `\n\n${adamLlmSettings.setupGuideShort()}`
       : '';
-    return `Hey — I'm **${ADAM_BOT_NAME}**, your **Volcano Vent Dice** guide.${betNote}\n\nSay **"teach me"** for a **brief summary** then **learn by questions** — not a lecture.${llmNote}${setupNote}\n\nPlain English anytime: the **Vent**, **2+2+2**, lucky charm, variants, house rules. **"Full rules"** only if you want the long version.`;
+    return `Hey — I'm **${ADAM_BOT_NAME}**. I'm a friend at the table, and I want to talk about **Volcano Vent Dice**.${betNote}\n\nSay **"teach me"** for a **brief summary** then **learn by questions** — not a lecture.${llmNote}${setupNote}\n\nAsk one rule, then another. I will follow you: the **Vent**, **2+2+2**, lucky charm, a **six**, house rules. **"Full rules"** only if you want the long version.`;
   },
 
   respond(message) {
-    const reply = this._buildReply(message);
-    const m = String(message || '').trim();
-    if (m) this._recordTurn(m, reply);
+    const raw = String(message || '');
+    if (typeof volcanoIsNsfw === 'function' && volcanoIsNsfw(raw)) {
+      const reply = this._nsfwRefusal();
+      if (raw.trim()) this._recordTurn(raw.trim(), reply);
+      return reply;
+    }
+    const clean = this._cleanForGame(raw);
+    const reply = this._buildReply(clean);
+    if (String(clean || '').trim()) this._recordTurn(String(clean).trim(), reply);
     return reply;
   },
 
   async respondAsync(message) {
-    const m = String(message || '').trim();
-    if (!m) return 'Say something when you are ready — I am here for Volcano Vent Dice questions!';
-
-    let reply = this._buildReply(message);
+    const raw = String(message || '').trim();
+    if (!raw) return 'Say something when you are ready — I am here for Volcano Vent Dice questions!';
+    if (typeof volcanoIsNsfw === 'function' && volcanoIsNsfw(raw)) {
+      const reply = this._nsfwRefusal();
+      this._recordTurn(raw, reply);
+      return reply;
+    }
+    const clean = this._cleanForGame(raw);
+    let reply = this._buildReply(clean);
     if (typeof adamLlm !== 'undefined' && adamLlm.isEnabled()) {
       const roughGuide = /^I'm a \*\*rough guide\*\*/.test(reply);
-      const offTopic = this._isLikelyOffTopic(m);
-      if (/lucky\s*charm/i.test(m) && !roughGuide) {
+      const offTopic = this._isLikelyOffTopic(clean);
+      if (/lucky\s*charm/i.test(clean) && !roughGuide) {
         // Keep topic-specific charm answers — skip GPT rewrite.
       } else if (roughGuide || offTopic) {
-        reply = await adamLlm.completeOffTopic(m, reply, this.conversationHistory);
-      } else if (adamLlm.shouldEnhance(m, reply)) {
-        reply = await adamLlm.complete(m, reply, this.conversationHistory);
+        reply = await adamLlm.completeOffTopic(clean, reply, this.conversationHistory);
+      } else if (adamLlm.shouldEnhance(clean, reply)) {
+        reply = await adamLlm.complete(clean, reply, this.conversationHistory);
       }
     }
-    this._recordTurn(m, reply);
+    this._recordTurn(clean, reply);
     return reply;
+  },
+
+  _cleanForGame(message) {
+    const raw = String(message || '');
+    if (typeof volcanoIsNsfw === 'function' && volcanoIsNsfw(raw)) return raw;
+    if (typeof volcanoHearSix === 'function') return volcanoHearSix(raw);
+    return raw;
+  },
+
+  _nsfwRefusal() {
+    return `I don't talk about that. I want to talk about **Volcano Vent Dice** — the countdown, the **Vent**, or a lucky charm.`;
+  },
+
+  _namedRule(message) {
+    const s = String(message || '').toLowerCase();
+    if (!s.trim()) return '';
+    if (/\b(?:house\s+rules?|pretend\s+bets?|antes?|keeper|napkin)\b/.test(s)) return 'betting';
+    if (/lucky\s*charms?|\bcharms?\b/.test(s)) return 'lucky_charm';
+    if (/\b(?:scor(?:e|ing)|who\s+wins|paper\s+lives)\b/.test(s)) return 'tokens';
+    if (/\btokens?\b/.test(s) && !/\b(?:ante|bead|button|pretend)\b/.test(s)) return 'tokens';
+    if (/countdown|2\s*\+\s*2\s*\+\s*2|\bsums?\b/.test(s)) return 'countdown';
+    if (/\b(?:roll|tribute|equal|the|a|number)\s+(?:a\s+)?(?:six|6)\b|\b(?:six|6)\s+dice\b|\bmultiple\s+sixes\b/.test(s)) return 'rolling_six';
+    if (/\b(?:the\s+vent|on\s+the\s+vent|rescue(?:\s+roll)?)\b/.test(s)) return 'vent';
+    return '';
+  },
+
+  _previousNamedRule() {
+    const users = [...this.conversationHistory].reverse().filter(entry => entry.role === 'user');
+    for (const entry of users) {
+      const named = this._namedRule(entry.content);
+      if (named) return named;
+    }
+    return '';
+  },
+
+  _namesADifferentRule(message) {
+    const named = this._namedRule(message);
+    if (!named) return false;
+    const from = this._previousNamedRule();
+    return !!from && from !== named;
+  },
+
+  _withPivot(message, reply) {
+    const text = String(reply || '');
+    const named = this._namedRule(message);
+    if (!named || !text || /I don't talk about that/i.test(text)) return reply;
+    const from = this._previousNamedRule();
+    if (!from || from === named) return reply;
+    const bridge = `Sure — we can leave ${this._topicLabel(from)}. I want to talk about ${this._topicLabel(named)}.`;
+    if (text.includes('I want to talk about')) return reply;
+    return `${bridge}\n\n${text}`;
   },
 
   _isLikelyOffTopic(message) {
@@ -93,7 +155,7 @@ const adam = {
         return adamAgeVerifier.bettingBlockedReply();
       }
     }
-    return this._route(m);
+    return this._withPivot(m, this._route(m));
   },
 
   _recordTurn(userMessage, assistantReply) {
@@ -475,12 +537,15 @@ const adam = {
 
   _isWhatNext(m) {
     const t = String(m || '').trim().toLowerCase();
-    if (/^(?:continue|keep\s+going|go\s+on|carry\s+on|please\s+continue|continue\s+please)(?:\s|!|\.|$)/.test(t)) {
+    if (this._namesADifferentRule(t)) return false;
+    if (/^(?:continue|keep\s+going|go\s+on|carry\s+on|please\s+continue|continue\s+please)(?:\s|[!.?])*$/.test(t)) {
       if (this._isWalkthroughContinue(t)) return false;
       return this._lastAssistantInvitedResponse() || this._activeTopic() !== 'general';
     }
-    return /what(?:'s|\s+is|\s+happens)\s+next|and\s+then|then\s+what|what\s+now|what\s+do\s+(?:i|we)\s+do\s+now|go\s+on|keep\s+going|continue|tell\s+me\s+more|what\s+after\s+that|after\s+that\s+what/.test(m)
-      || (/^go\s+ahead\.?$/i.test(t) && this._lastAssistantOfferedContinuation());
+    if (/^(?:what(?:'s|\s+is|\s+happens)\s+next|and\s+then|then\s+what|what\s+now|what\s+do\s+(?:i|we)\s+do\s+now|go\s+on|keep\s+going|continue|tell\s+me\s+more|what\s+after\s+that|after\s+that\s+what)(?:\s*[?.!])*$/i.test(t)) {
+      return true;
+    }
+    return /^go\s+ahead\.?$/i.test(t) && this._lastAssistantOfferedContinuation();
   },
 
   _isExplicitFullRulesRequest(m) {
@@ -791,6 +856,7 @@ const adam = {
   },
 
   _isBettingFollowUp(m) {
+    if (this._namesADifferentRule(m)) return false;
     if (!this._onBettingThread() && !/pretend\s+bet|buttons?\s+and\s+beads?/.test(m)) return false;
     if (!adamAgeVerifier.canDiscussBetting()) return false;
     return /further\s+inquir|more\s+(?:about|on)\s+pretend|follow[\s-]?up.*(?:pretend|bet)|continue.*pretend\s+bet/.test(m)
@@ -1754,7 +1820,7 @@ const adam = {
     if (this._isLikelyOffTopic(m) && !this._isOtherDiceGameQuestion(m) && !this._isBettingAside(m)) {
       return this._offTopicPersonality(message);
     }
-    if (this._onBettingThread() && adamAgeVerifier.canDiscussBetting()) {
+    if (this._onBettingThread() && !this._namesADifferentRule(m) && adamAgeVerifier.canDiscussBetting()) {
       return `Still on **pretend bets** — try **"tell me more"**, **"what about keeper?"**, **"how do antes work?"**, or **"what can be used for bets?"** in plain English.\n\nYou asked: "${message}"`;
     }
     return `I'm a **rough guide** — I may not have every phrasing perfect. Try **"how do I play?"**, **"full rules"**, **"lucky charm"**, or **"the Vent"**. You asked: "${message}"`;
