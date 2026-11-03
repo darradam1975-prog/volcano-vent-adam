@@ -38,6 +38,11 @@ const adamVoice = {
   _speakGen: 0,
   _sentThisListen: false,
   _resumeTimer: null,
+  _replyTurn: 0,
+  _speakingText: '',
+  _barge: false,
+  _listenHint: '',
+  _fillingInput: false,
 
   init() {
     if (!this.supported && !this.listenSupported) return;
@@ -130,6 +135,13 @@ const adamVoice = {
       this.loop = !!this.loopInput.checked;
       localStorage.setItem('adam-voice-loop', this.loop ? '1' : '0');
     });
+    const chatInput = document.getElementById('chat-input');
+    if (typeof chatInput?.addEventListener === 'function') {
+      chatInput.addEventListener('input', () => {
+        if (this._fillingInput) return;
+        if (this._phase === 'speaking' || this._phase === 'thinking') this._cutSpeech();
+      });
+    }
   },
 
   _loadVoices() {
@@ -360,15 +372,16 @@ const adamVoice = {
       btn.classList.toggle('listening', this._phase === 'listening');
       btn.classList.toggle('speaking', this._phase === 'speaking' || this._phase === 'thinking');
       btn.setAttribute('aria-pressed', live ? 'true' : 'false');
-      const label = live ? 'Stop AI' : 'Talk with AI';
+      const correcting = this._phase === 'speaking' || this._phase === 'thinking';
+      const label = correcting ? 'Interrupt Adam' : (live ? 'Stop AI' : 'Talk with AI');
       btn.title = label;
       btn.setAttribute('aria-label', label);
       const icon = btn.querySelector('.voice-mic-icon');
       if (icon) icon.textContent = live ? '⏹' : '🎤';
     }
-    if (this._phase === 'listening') this._setStatus('Listening… pause when you finish.');
-    else if (this._phase === 'thinking') this._setStatus('Got it. AI is answering…');
-    else if (this._phase === 'speaking') this._setStatus('AI is speaking…');
+    if (this._phase === 'listening') this._setStatus(this._listenHint || 'Listening… pause when you finish.');
+    else if (this._phase === 'thinking') this._setStatus('Got it. AI is answering… tap the mic to stop him.');
+    else if (this._phase === 'speaking') this._setStatus('Adam is speaking… talk or tap the mic to correct him.');
     else if (!this._statusLocked) this._setStatus('');
   },
 
@@ -384,7 +397,7 @@ const adamVoice = {
     rec.onstart = () => {
       this._sentThisListen = false;
       this.listening = true;
-      this._phase = 'listening';
+      if (this._phase !== 'speaking') this._phase = 'listening';
       this._syncMic();
     };
     rec.onresult = (event) => this._onHeard(event);
@@ -420,7 +433,7 @@ const adamVoice = {
     if (/\bvents?\b/.test(t)) score += 5;
     if (/\bvolcano\b/.test(t)) score += 2;
     if (/\blucky\s*charms?\b/.test(t)) score += 2;
-    if (/\brents?\b|\bbents?\b|\bmoons?\b|\bevents?\b|\bmeant\b|\bmint\b/.test(t)) score -= 4;
+    if (/\brents?\b|\bbents?\b|\bmoons?\b|\bevents?\b/.test(t)) score -= 4;
     return score;
   },
 
@@ -441,18 +454,47 @@ const adamVoice = {
   },
 
   _correctHeard(text) {
-    const housing = /\b(?:pay|paying|paid|owe|owing|my|monthly|apartment|house|due)\s+$/i;
-    const cue = /^(?:the|a|an|about|on|onto|volcano|hit|miss|missed|that|this|your)$/i;
-    return String(text || '').replace(/\b(rents?|bents?|moons?|events?|meant|mint)\b/gi, (word, _g, offset, whole) => {
-      const before = whole.slice(Math.max(0, offset - 32), offset);
-      if (housing.test(before)) return word;
+    const raw = String(text || '');
+    const gameAsk = /^(?:tell me|what|whats|what's|how|explain|describe|talk|about)\b/i.test(raw.trim());
+    const housing = /\b(?:pay|paying|paid|owe|owing|my|monthly|apartment|house|due|for)\s+$/i;
+    const moonKeep = /\b(?:full|blue|new|half|harvest|super|to\s+the)\s+$/i;
+    const eventKeep = /\b(?:sports|main|track|next|charity|family|social)\s+$/i;
+    const cue = /^(?:the|a|an|about|on|onto|volcano|hit|miss|missed)$/i;
+    return raw.replace(/\b(rents?|bents?|moons?|events?)\b/gi, (word, _g, offset, whole) => {
+      const before = whole.slice(Math.max(0, offset - 40), offset);
+      if (/rent/i.test(word) && housing.test(before)) return word;
+      if (/moon/i.test(word) && moonKeep.test(before)) return word;
+      if (/event/i.test(word) && eventKeep.test(before)) return word;
       const prev = (before.match(/([A-Za-z]+)\s+$/) || [])[1] || '';
-      const only = /^(?:a |an |the )?(?:rents?|bents?|moons?|events?|meant|mint)$/i.test(whole.trim());
-      const asking = /^(?:tell me|what|whats|what's|how|about|explain|describe|talk)\b/i.test(whole.trim());
-      if (!cue.test(prev) && !only && !asking) return word;
+      if (!cue.test(prev)) return word;
+      if (!gameAsk && whole.trim().split(/\s+/).length > 3) return word;
       const next = /s$/i.test(word) ? 'vents' : 'vent';
       return word[0] === word[0].toUpperCase() ? next[0].toUpperCase() + next.slice(1) : next;
     });
+  },
+
+  _isEcho(heard) {
+    const said = String(this._speakingText || '').toLowerCase();
+    const h = String(heard || '').toLowerCase().trim();
+    if (!h || !said) return false;
+    if (/^(?:no|nope|nah|wait|stop|wrong|hold on|not that|i meant|i mean)\b/.test(h)) return false;
+    const norm = (s) => s.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const hn = norm(h);
+    const sn = norm(said);
+    if (!hn || hn.length < 2) return true;
+    if (sn.includes(hn)) return true;
+    const words = hn.split(' ').filter(w => w.length > 2);
+    if (!words.length) return true;
+    const hits = words.filter(w => sn.includes(w)).length;
+    return hits / words.length >= 0.7;
+  },
+
+  _setInput(text) {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    this._fillingInput = true;
+    input.value = text;
+    this._fillingInput = false;
   },
 
   _pendingLine() {
@@ -471,8 +513,7 @@ const adamVoice = {
     this._sentThisListen = true;
     this._phase = 'thinking';
     if (!this.loop) this._session = false;
-    const input = document.getElementById('chat-input');
-    if (input) input.value = line;
+    this._setInput(line);
     this._showOnChat(line);
     this._syncMic();
     try { this._recognition?.stop(); } catch { /* already stopped */ }
@@ -480,7 +521,6 @@ const adamVoice = {
   },
 
   _onHeard(event) {
-    if (this._phase === 'speaking') return;
     let finalText = '';
     let interim = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -489,11 +529,32 @@ const adamVoice = {
       else interim += piece;
     }
     const shown = this._correctHeard((finalText || interim).trim());
-    const input = document.getElementById('chat-input');
-    if (input && shown) input.value = shown;
-    if (shown) this._showOnChat(shown);
     const heard = this._correctHeard(finalText.trim());
-    if (!heard || this._sentThisListen) return;
+    if (this._phase === 'speaking') {
+      const live = heard || shown;
+      if (!live || this._isEcho(live)) return;
+      if (heard) {
+        this.interrupt(heard);
+        return;
+      }
+      if (/^(?:no|nope|nah|wait|stop|wrong|hold on)\b/i.test(shown)) {
+        this._cutSpeech();
+        this._session = true;
+        this._phase = 'listening';
+        this._sentThisListen = false;
+        this._listenHint = 'Listening… correct that.';
+        this._setInput(shown);
+        this._showOnChat(shown);
+        this._syncMic();
+      }
+      return;
+    }
+    if (this._sentThisListen) return;
+    if (shown) {
+      this._setInput(shown);
+      this._showOnChat(shown);
+    }
+    if (!heard) return;
     this._commitHeard(heard);
   },
 
@@ -527,6 +588,10 @@ const adamVoice = {
 
   _onListenEnd() {
     this.listening = false;
+    if (this._phase === 'speaking' && this._session && this._barge) {
+      this._armListen(250);
+      return;
+    }
     if (this._phase === 'listening') {
       const pending = this._pendingLine();
       if (pending && !this._sentThisListen) {
@@ -549,11 +614,12 @@ const adamVoice = {
 
   _beginListen() {
     if (!this._session || !this.listenSupported) return;
-    if (this._phase === 'speaking' || this._phase === 'thinking') return;
+    if (this._phase === 'thinking') return;
+    if (this._phase === 'speaking' && !this._barge) return;
     const rec = this._ensureRecognition();
     if (!rec) return;
     rec.lang = this._listenLang();
-    this._phase = 'listening';
+    if (this._phase !== 'speaking') this._phase = 'listening';
     this._syncMic();
     try {
       rec.start();
@@ -563,8 +629,37 @@ const adamVoice = {
   },
 
   toggleTalk() {
+    if (this._phase === 'speaking' || this._phase === 'thinking') {
+      this.interrupt();
+      return;
+    }
     if (this._session || this._phase !== 'idle') this.stopTalk();
     else this.startTalk();
+  },
+
+  _cutSpeech() {
+    this._replyTurn += 1;
+    this._speakGen += 1;
+    this._barge = false;
+    this._speakingText = '';
+    clearTimeout(this._resumeTimer);
+    this.stop();
+    this.speaking = false;
+  },
+
+  interrupt(line) {
+    this._cutSpeech();
+    this._session = true;
+    this._sentThisListen = false;
+    const text = String(line || '').trim();
+    if (text) {
+      this._listenHint = '';
+      this._commitHeard(text);
+      return;
+    }
+    this._listenHint = 'Listening… correct that.';
+    this._phase = 'idle';
+    this._beginListen();
   },
 
   startTalk() {
@@ -612,12 +707,14 @@ const adamVoice = {
   speak(text) {
     if (!text) return;
     this._lastText = text;
+    this._speakingText = this.stripMarkdown(text);
     if (!this.supported || !this.autoRead) {
       this._afterSpeak();
       return;
     }
 
     const gen = ++this._speakGen;
+    this._barge = false;
     this._phase = 'speaking';
     this.speaking = true;
     this._syncMic();
@@ -640,6 +737,13 @@ const adamVoice = {
       if (gen !== this._speakGen) return;
       this._afterSpeak();
     };
+    utter.onstart = () => {
+      if (gen !== this._speakGen) return;
+      if (this._session && this.loop) {
+        this._barge = true;
+        this._armListen(300);
+      }
+    };
     utter.onend = finish;
     utter.onerror = finish;
     speechSynthesis.speak(utter);
@@ -647,6 +751,9 @@ const adamVoice = {
 
   _afterSpeak() {
     this.speaking = false;
+    this._barge = false;
+    this._speakingText = '';
+    this._listenHint = '';
     if (this._phase === 'speaking' || this._phase === 'thinking') this._phase = 'idle';
     this._syncMic();
     if (this._session && this.loop) this._armListen(this.resumeDelay);

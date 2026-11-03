@@ -194,5 +194,31 @@ check('heard moon is sent as vent', sent.at(-1) === 'tell me about the vent');
 check('chat draft shows vent for moon', drafts.at(-1) === 'tell me about the vent');
 adamVoice.stopTalk();
 
+check('meant is not rewritten', adamVoice._correctHeard('tell me what you meant') === 'tell me what you meant');
+check('a bright moon stays a moon', adamVoice._correctHeard('the moon is bright tonight') === 'the moon is bright tonight');
+check('to the moon stays', adamVoice._correctHeard('to the moon') === 'to the moon');
+
+adamVoice._speakingText = 'The Vent is the rim. Ask me about the countdown.';
+adamVoice._phase = 'speaking';
+adamVoice._session = true;
+adamVoice._sentThisListen = false;
+const sentBeforeEcho = sent.length;
+adamVoice._onHeard({
+  resultIndex: 0,
+  results: [{ 0: { transcript: 'the vent is the rim' }, isFinal: true, length: 1 }]
+});
+check('echo of Adam is ignored', sent.length === sentBeforeEcho && adamVoice._phase === 'speaking');
+adamVoice._onHeard({
+  resultIndex: 0,
+  results: [{ 0: { transcript: 'no I meant the beads' }, isFinal: true, length: 1 }]
+});
+check('a correction interrupts Adam', sent.at(-1) === 'no I meant the beads' && adamVoice._session === true);
+
+adamVoice._phase = 'speaking';
+adamVoice._session = true;
+adamVoice.toggleTalk();
+check('mic tap while Adam speaks listens for a correction', adamVoice._session === true && adamVoice._phase === 'listening');
+adamVoice.stopTalk();
+
 console.log(`\nPassed ${ok} / ${ok + fail}`);
 if (fail) process.exit(1);

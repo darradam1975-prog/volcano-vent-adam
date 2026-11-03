@@ -162,6 +162,8 @@ async function sendMessage() {
 
   const fromVoice = typeof adamVoice !== 'undefined'
     && (adamVoice._session || adamVoice._phase === 'thinking' || adamVoice._phase === 'speaking');
+  const turn = typeof adamVoice !== 'undefined' ? (adamVoice._replyTurn || 0) : 0;
+  const stillThisTurn = () => typeof adamVoice === 'undefined' || (adamVoice._replyTurn || 0) === turn;
 
   input.value = '';
   clearVoiceDraft();
@@ -175,9 +177,17 @@ async function sendMessage() {
     const reply = typeof adam.respondAsync === 'function'
       ? await adam.respondAsync(text)
       : adam.respond(text);
+    if (!stillThisTurn()) {
+      if (typing) typing.classList.add('hidden');
+      return;
+    }
     if (typing) typing.classList.add('hidden');
     addMessage('assistant', reply, ADAM_SOURCE);
   } catch {
+    if (!stillThisTurn()) {
+      if (typing) typing.classList.add('hidden');
+      return;
+    }
     if (typing) typing.classList.add('hidden');
     addMessage('assistant', adam.respond(text), ADAM_SOURCE);
   }
