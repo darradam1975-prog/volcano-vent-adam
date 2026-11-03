@@ -1216,9 +1216,21 @@ body.modal-open {
   margin-top: 4px;
 }
 
+#settings-modal .modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: min(90vh, 90dvh);
+}
+
+#settings-modal .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .settings-footer {
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
   padding: 14px 20px 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: var(--bg-card);
@@ -1236,6 +1248,11 @@ body.modal-open {
   color: var(--text-muted);
   text-align: center;
   margin-bottom: 10px;
+}
+
+.settings-save-all-status.settings-save-all-error {
+  color: #ff6b6b;
+  font-weight: 700;
 }
 
 .footer-note {

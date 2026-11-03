@@ -210,6 +210,7 @@ function closeSettings() {
   const status = document.getElementById('settings-save-all-status');
   if (status) {
     status.textContent = '';
+    status.classList.remove('settings-save-all-error');
     status.classList.add('hidden');
   }
 }
@@ -220,39 +221,33 @@ async function saveAllSettingsAndClose() {
   if (btn) btn.disabled = true;
   if (status) {
     status.textContent = 'Saving…';
+    status.classList.remove('settings-save-all-error');
     status.classList.remove('hidden');
   }
 
-  const saved = [];
-
   try {
     adamVoice?.saveFromForm?.();
-    saved.push('voice');
 
     const birthday = adamAgeVerifier?.saveBirthdayFromForm?.({ announce: false });
-    if (birthday?.saved) saved.push('birthday');
     if (birthday?.error) throw new Error(birthday.error);
 
     const llm = adamLlmSettings?.saveFromForm?.();
-    if (llm?.saved) saved.push('GPT');
     if (llm?.error) throw new Error(llm.error);
 
-    const syncInput = document.getElementById('sync-id-input')?.value?.trim();
-    if (syncInput && syncInput.length >= 6) {
-      await adamConversations?.saveSyncIdAndSync?.(syncInput);
-      saved.push('sync');
-    } else if (adamConversations?.getSyncId?.()) {
-      await adamConversations?.syncFull?.();
-      saved.push('sync');
+    const syncInput = document.getElementById('sync-id-input')?.value?.trim() || '';
+    if (syncInput.length >= 6) adamConversations?.setSyncId?.(syncInput);
+    const syncing = adamConversations?.getSyncId?.() ? adamConversations.syncFull?.() : null;
+    if (syncing && typeof syncing.catch === 'function') {
+      syncing.catch(err => {
+        adamConversations?._setSyncStatus?.(`Saved on this device. Cloud sync failed — ${err?.message || err}`);
+      });
     }
 
-    if (status) {
-      status.textContent = `Saved ${saved.join(', ')}`;
-    }
     closeSettings();
   } catch (e) {
     if (status) {
       status.textContent = String(e.message || e);
+      status.classList.add('settings-save-all-error');
       status.classList.remove('hidden');
     }
   } finally {
