@@ -105,6 +105,15 @@ const adamVoice = {
       else this.stop();
     });
     this.micBtn?.addEventListener('click', () => this.toggleTalk());
+    document.getElementById('voice-interrupt')?.addEventListener?.('click', () => this.interrupt());
+    if (typeof document.addEventListener === 'function') {
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        if (this._phase !== 'speaking' && this._phase !== 'thinking') return;
+        event.preventDefault();
+        this.interrupt();
+      });
+    }
     this.rateInput?.addEventListener('input', () => {
       this.rate = Number(this.rateInput.value) || 0.92;
       localStorage.setItem('adam-voice-rate', String(this.rate));
@@ -376,6 +385,8 @@ const adamVoice = {
       const label = correcting ? 'Interrupt Adam' : (live ? 'Stop AI' : 'Talk with AI');
       btn.title = label;
       btn.setAttribute('aria-label', label);
+      const interruptBtn = document.getElementById('voice-interrupt');
+      if (interruptBtn) interruptBtn.classList.toggle('hidden', !correcting);
       const icon = btn.querySelector('.voice-mic-icon');
       if (icon) icon.textContent = live ? '⏹' : '🎤';
     }
@@ -395,6 +406,7 @@ const adamVoice = {
     rec.maxAlternatives = 5;
     this._biasRecognition(rec);
     rec.onstart = () => {
+      this._bargeTries = 0;
       this._sentThisListen = false;
       this.listening = true;
       if (this._phase !== 'speaking') this._phase = 'listening';
@@ -481,12 +493,9 @@ const adamVoice = {
     const norm = (s) => s.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const hn = norm(h);
     const sn = norm(said);
-    if (!hn || hn.length < 2) return true;
-    if (sn.includes(hn)) return true;
-    const words = hn.split(' ').filter(w => w.length > 2);
-    if (!words.length) return true;
-    const hits = words.filter(w => sn.includes(w)).length;
-    return hits / words.length >= 0.7;
+    const words = hn.split(' ').filter(Boolean);
+    if (words.length < 4) return false;
+    return sn.includes(hn);
   },
 
   _setInput(text) {
@@ -624,7 +633,8 @@ const adamVoice = {
     try {
       rec.start();
     } catch {
-      /* already started */
+      this._bargeTries = (this._bargeTries || 0) + 1;
+      if (this._barge && this._phase === 'speaking' && this._bargeTries < 8) this._armListen(300);
     }
   },
 
@@ -735,18 +745,31 @@ const adamVoice = {
     utter.pitch = this.pitch;
     const finish = () => {
       if (gen !== this._speakGen) return;
-      this._afterSpeak();
-    };
-    utter.onstart = () => {
-      if (gen !== this._speakGen) return;
-      if (this._session && this.loop) {
-        this._barge = true;
-        this._armListen(300);
+      if (this.supported && (speechSynthesis.speaking || speechSynthesis.pending)) {
+        this._armSpeakWatch(gen);
+        return;
       }
+      this._afterSpeak();
     };
     utter.onend = finish;
     utter.onerror = finish;
     speechSynthesis.speak(utter);
+    if (this._session) {
+      this._barge = true;
+      this._armListen(400);
+    }
+  },
+
+  _armSpeakWatch(gen) {
+    clearTimeout(this._speakWatch);
+    this._speakWatch = setTimeout(() => {
+      if (gen !== this._speakGen) return;
+      if (this.supported && (speechSynthesis.speaking || speechSynthesis.pending)) {
+        this._armSpeakWatch(gen);
+        return;
+      }
+      this._afterSpeak();
+    }, 250);
   },
 
   _afterSpeak() {
@@ -765,7 +788,12 @@ const adamVoice = {
   },
 
   stop() {
-    if (this.supported) speechSynthesis.cancel();
+    if (this.supported) {
+      try {
+        if (speechSynthesis.paused && typeof speechSynthesis.resume === 'function') speechSynthesis.resume();
+      } catch { /* ignore */ }
+      try { speechSynthesis.cancel(); } catch { /* ignore */ }
+    }
     this.speaking = false;
   },
 

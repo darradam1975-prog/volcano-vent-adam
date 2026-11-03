@@ -208,6 +208,17 @@ adamVoice._onHeard({
   results: [{ 0: { transcript: 'the vent is the rim' }, isFinal: true, length: 1 }]
 });
 check('echo of Adam is ignored', sent.length === sentBeforeEcho && adamVoice._phase === 'speaking');
+check('a short line is not echo', adamVoice._isEcho('the vent') === false);
+adamVoice._onHeard({
+  resultIndex: 0,
+  results: [{ 0: { transcript: 'the vent' }, isFinal: true, length: 1 }]
+});
+check('saying the vent interrupts Adam', sent.at(-1) === 'the vent');
+
+adamVoice._speakingText = 'The Vent is the rim. Ask me about the countdown.';
+adamVoice._phase = 'speaking';
+adamVoice._session = true;
+adamVoice._sentThisListen = false;
 adamVoice._onHeard({
   resultIndex: 0,
   results: [{ 0: { transcript: 'no I meant the beads' }, isFinal: true, length: 1 }]
