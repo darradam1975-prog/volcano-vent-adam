@@ -79,16 +79,24 @@ function check(label, pass) {
 }
 
 adamVoice.resumeDelay = 0;
+adamVoice._endPause = 50;
 adamVoice.init();
 adamVoice.loop = true;
 
+async function waitTurn() {
+  await new Promise(resolve => setTimeout(resolve, adamVoice._endPause + 40));
+}
+
 adamVoice.startTalk();
 check('mic opens', starts === 1 && adamVoice._phase === 'listening');
+check('mic stays open across a breath', adamVoice._recognition.continuous === true);
 
 adamVoice._recognition.onresult({
   resultIndex: 0,
   results: [{ 0: { transcript: 'what is the vent' }, isFinal: true, length: 1 }]
 });
+check('a short result does not send yet', sent.length === 0);
+await waitTurn();
 check('heard line is sent', sent.length === 1 && sent[0] === 'what is the vent');
 check('reply is spoken', spoken.includes('The Vent is the rim.'));
 check('mic stays shut while Adam speaks', starts === 1 && adamVoice._phase === 'speaking');
@@ -102,6 +110,7 @@ adamVoice._recognition.onresult({
   resultIndex: 0,
   results: [{ 0: { transcript: 'who wins' }, isFinal: true, length: 1 }]
 });
+await waitTurn();
 const startsAfterOneShot = starts;
 lastUtter.onend();
 await new Promise(resolve => setTimeout(resolve, 30));
@@ -124,7 +133,34 @@ adamVoice._recognition.onresult({
 check('live voice line shows on the chat', drafts.at(-1) === 'hello from the mic');
 check('live voice line waits for the pause', sent.length === sentBeforeLive);
 adamVoice._onListenEnd();
-check('paused voice line is posted to the chat', sent.at(-1) === 'hello from the mic');
+await new Promise(resolve => setTimeout(resolve, 30));
+check('a short pause keeps the mic open', sent.length === sentBeforeLive && adamVoice._phase === 'listening' && adamVoice._session === true);
+adamVoice._recognition.onresult({
+  resultIndex: 0,
+  results: [{ 0: { transcript: 'and the beads' }, isFinal: true, length: 1 }]
+});
+await waitTurn();
+check('the whole line is posted after you finish', sent.at(-1) === 'hello from the mic and the beads');
+adamVoice.stopTalk();
+
+adamVoice.loop = true;
+adamVoice.startTalk();
+const sentBeforeParts = sent.length;
+adamVoice._recognition.onresult({
+  resultIndex: 0,
+  results: [{ 0: { transcript: 'tell me about' }, isFinal: true, length: 1 }]
+});
+await new Promise(resolve => setTimeout(resolve, 20));
+check('a breath between phrases does not send', sent.length === sentBeforeParts);
+adamVoice._recognition.onresult({
+  resultIndex: 1,
+  results: [
+    { 0: { transcript: 'tell me about' }, isFinal: true, length: 1 },
+    { 0: { transcript: 'the vent' }, isFinal: true, length: 1 }
+  ]
+});
+await waitTurn();
+check('both phrases go as one line', sent.at(-1) === 'tell me about the vent' && sent.length === sentBeforeParts + 1);
 adamVoice.stopTalk();
 
 clearTimeout(adamVoice._voiceWatch);
@@ -176,6 +212,8 @@ adamVoice._recognition.onresult({
     length: 1
   }]
 });
+check('heard rent waits through the breath', sent.length === sentBeforeRent);
+await waitTurn();
 check('heard rent is sent as vent', sent.at(-1) === 'tell me about the vent' && sent.length === sentBeforeRent + 1);
 check('chat draft shows vent', drafts.at(-1) === 'tell me about the vent');
 adamVoice.stopTalk();
@@ -190,6 +228,7 @@ adamVoice._recognition.onresult({
     length: 1
   }]
 });
+await waitTurn();
 check('heard moon is sent as vent', sent.at(-1) === 'tell me about the vent');
 check('chat draft shows vent for moon', drafts.at(-1) === 'tell me about the vent');
 adamVoice.stopTalk();
@@ -209,10 +248,13 @@ adamVoice._onHeard({
 });
 check('echo of Adam is ignored', sent.length === sentBeforeEcho && adamVoice._phase === 'speaking');
 check('a short line is not echo', adamVoice._isEcho('the vent') === false);
+const sentBeforeVent = sent.length;
 adamVoice._onHeard({
   resultIndex: 0,
   results: [{ 0: { transcript: 'the vent' }, isFinal: true, length: 1 }]
 });
+check('saying the vent stops Adam without sending yet', adamVoice._phase === 'listening' && sent.length === sentBeforeVent);
+await waitTurn();
 check('saying the vent interrupts Adam', sent.at(-1) === 'the vent');
 
 adamVoice._speakingText = 'The Vent is the rim. Ask me about the countdown.';
@@ -223,6 +265,8 @@ adamVoice._onHeard({
   resultIndex: 0,
   results: [{ 0: { transcript: 'no I meant the beads' }, isFinal: true, length: 1 }]
 });
+check('a correction stops Adam', adamVoice._phase === 'listening' && adamVoice._session === true);
+await waitTurn();
 check('a correction interrupts Adam', sent.at(-1) === 'no I meant the beads' && adamVoice._session === true);
 
 adamVoice._phase = 'speaking';

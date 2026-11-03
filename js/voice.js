@@ -43,6 +43,11 @@ const adamVoice = {
   _barge: false,
   _listenHint: '',
   _fillingInput: false,
+  _endPause: 1800, // quiet time before a turn is sent; a breath must not end it
+  _silenceTimer: null,
+  _kept: '',
+  _finals: [],
+  _interim: '',
 
   init() {
     if (!this.supported && !this.listenSupported) return;
@@ -409,7 +414,7 @@ const adamVoice = {
       const icon = btn.querySelector('.voice-mic-icon');
       if (icon) icon.textContent = correcting ? 'Stop' : (live ? '⏹' : '🎤');
     }
-    if (this._phase === 'listening') this._setStatus(this._listenHint || 'Listening… pause when you finish.');
+    if (this._phase === 'listening') this._setStatus(this._listenHint || 'Listening… a short pause is fine.');
     else if (this._phase === 'thinking') this._setStatus('Got it. AI is answering… tap the mic to stop him.');
     else if (this._phase === 'speaking') this._setStatus('Adam is speaking. Tap Interrupt and he stops.');
     else if (!this._statusLocked) this._setStatus('');
@@ -421,13 +426,16 @@ const adamVoice = {
     const rec = new Ctor();
     rec.lang = 'en-US';
     rec.interimResults = true;
-    rec.continuous = false;
+    rec.continuous = true;
     rec.maxAlternatives = 5;
     this._biasRecognition(rec);
     rec.onstart = () => {
       this._bargeTries = 0;
-      this._sentThisListen = false;
       this.listening = true;
+      if (this._phase === 'thinking' || !this._session) {
+        try { rec.stop(); } catch { /* already stopping */ }
+        return;
+      }
       if (this._phase !== 'speaking') this._phase = 'listening';
       this._syncMic();
     };
@@ -525,14 +533,80 @@ const adamVoice = {
     this._fillingInput = false;
   },
 
-  _pendingLine() {
-    const fromInput = document.getElementById('chat-input')?.value?.trim() || '';
-    if (fromInput) return fromInput;
-    return document.getElementById('voice-draft')?.textContent?.trim() || '';
-  },
-
   _showOnChat(text) {
     if (typeof showVoiceDraft === 'function') showVoiceDraft(text);
+  },
+
+  _partsFromEvent(event) {
+    let heard = '';
+    let interim = '';
+    const finals = [];
+    if (!event || !event.results) return { heard, interim, finals };
+    const start = event.resultIndex || 0;
+    for (let i = start; i < event.results.length; i++) {
+      const piece = this._bestAlternative(event.results[i]).trim();
+      if (!piece) continue;
+      if (event.results[i].isFinal) {
+        finals.push({ i, piece });
+        heard = heard ? heard + ' ' + piece : piece;
+      } else {
+        interim = interim ? interim + ' ' + piece : piece;
+      }
+    }
+    return { heard, interim, finals };
+  },
+
+  _absorb(event) {
+    const parts = this._partsFromEvent(event);
+    parts.finals.forEach(({ i, piece }) => {
+      if (this._isEcho(piece)) return;
+      this._finals[i] = piece;
+    });
+    this._interim = this._isEcho(parts.interim) ? '' : parts.interim;
+    return parts;
+  },
+
+  _stashFinals() {
+    const finals = (this._finals || []).filter(Boolean).join(' ').trim();
+    const extra = String(this._interim || '').trim();
+    const line = [finals, extra].filter(Boolean).join(' ').trim();
+    if (line) this._kept = [this._kept, line].filter(Boolean).join(' ').trim();
+    this._finals = [];
+    this._interim = '';
+  },
+
+  _liveLine() {
+    const finals = (this._finals || []).filter(Boolean).join(' ').trim();
+    return this._correctHeard([this._kept, finals, this._interim].filter(Boolean).join(' ').trim());
+  },
+
+  _clearTranscript() {
+    this._kept = '';
+    this._finals = [];
+    this._interim = '';
+    clearTimeout(this._silenceTimer);
+    this._silenceTimer = null;
+  },
+
+  _scheduleTurnEnd() {
+    clearTimeout(this._silenceTimer);
+    const wait = typeof this._endPause === 'number' ? this._endPause : 1800;
+    this._silenceTimer = setTimeout(() => this._finishTurn(), wait);
+  },
+
+  _finishTurn() {
+    this._silenceTimer = null;
+    if (!this._session || this._phase !== 'listening' || this._sentThisListen) return;
+    const line = this._liveLine();
+    if (!line) return;
+    this._commitHeard(line);
+  },
+
+  _showLive() {
+    const shown = this._liveLine();
+    if (!shown) return;
+    this._setInput(shown);
+    this._showOnChat(shown);
   },
 
   _commitHeard(text) {
@@ -541,6 +615,9 @@ const adamVoice = {
     this._sentThisListen = true;
     this._phase = 'thinking';
     if (!this.loop) this._session = false;
+    this._clearTranscript();
+    this._speakingText = '';
+    this._listenHint = '';
     this._setInput(line);
     this._showOnChat(line);
     this._syncMic();
@@ -550,41 +627,31 @@ const adamVoice = {
 
   _onHeard(event) {
     if (this._ignoreUntil && Date.now() < this._ignoreUntil) return;
-    let finalText = '';
-    let interim = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const piece = this._bestAlternative(event.results[i]);
-      if (event.results[i].isFinal) finalText += piece;
-      else interim += piece;
-    }
-    const shown = this._correctHeard((finalText || interim).trim());
-    const heard = this._correctHeard(finalText.trim());
+    const parts = this._partsFromEvent(event);
+    const heard = this._correctHeard(parts.heard.trim());
+    const shown = this._correctHeard((parts.heard || parts.interim).trim());
     if (this._phase === 'speaking') {
       const live = heard || shown;
       if (!live || this._isEcho(live)) return;
-      if (heard) {
-        this.interrupt(heard);
-        return;
-      }
-      if (/^(?:no|nope|nah|wait|stop|wrong|hold on)\b/i.test(shown)) {
-        this._cutSpeech();
-        this._session = true;
-        this._phase = 'listening';
-        this._sentThisListen = false;
-        this._listenHint = 'Listening… correct that.';
-        this._setInput(shown);
-        this._showOnChat(shown);
-        this._syncMic();
-      }
+      const stop = /^(?:no|nope|nah|wait|stop|wrong|hold on)\b/i.test(live);
+      if (!heard && !stop) return;
+      this._cutSpeech();
+      this._session = true;
+      this._sentThisListen = false;
+      this._phase = 'listening';
+      this._listenHint = 'Listening… keep going.';
+      this._absorb(event);
+      this._showLive();
+      this._scheduleTurnEnd();
+      this._syncMic();
+      if (!this.listening) this._armListen(100);
       return;
     }
-    if (this._sentThisListen) return;
-    if (shown) {
-      this._setInput(shown);
-      this._showOnChat(shown);
-    }
-    if (!heard) return;
-    this._commitHeard(heard);
+    if (this._sentThisListen || this._phase !== 'listening') return;
+    this._absorb(event);
+    if (!this._liveLine()) return;
+    this._showLive();
+    this._scheduleTurnEnd();
   },
 
   _onListenError(event) {
@@ -621,12 +688,10 @@ const adamVoice = {
       this._armListen(250);
       return;
     }
-    if (this._phase === 'listening') {
-      const pending = this._pendingLine();
-      if (pending && !this._sentThisListen) {
-        this._commitHeard(pending);
-        return;
-      }
+    if (this._phase === 'listening' && this._session && !this._sentThisListen) {
+      this._stashFinals();
+      this._armListen(100);
+      return;
     }
     if (!this._session || this._phase === 'thinking' || this._phase === 'speaking') {
       this._syncMic();
@@ -705,6 +770,7 @@ const adamVoice = {
   interrupt(line) {
     const text = String(line || '').trim();
     this._cutSpeech();
+    this._clearTranscript();
     this._session = true;
     this._sentThisListen = false;
     if (text) {
@@ -743,6 +809,9 @@ const adamVoice = {
       prime.volume = 0;
       speechSynthesis.speak(prime);
     }
+    this._clearTranscript();
+    this._sentThisListen = false;
+    this._listenHint = '';
     this._session = true;
     this._beginListen();
   },
@@ -751,11 +820,13 @@ const adamVoice = {
     this._session = false;
     this._phase = 'idle';
     clearTimeout(this._resumeTimer);
+    this._clearTranscript();
     this._speakGen += 1;
     this.stop();
     try { this._recognition?.abort?.(); } catch { /* ignore */ }
     try { this._recognition?.stop(); } catch { /* ignore */ }
     this.listening = false;
+    this._setInput('');
     this._showOnChat('');
     this._syncMic();
   },
@@ -842,10 +913,16 @@ const adamVoice = {
     this._barge = false;
     this._speakingText = '';
     this._listenHint = '';
+    this._clearTranscript();
+    this._sentThisListen = false;
     if (this._phase === 'speaking' || this._phase === 'thinking') this._phase = 'idle';
     this._syncMic();
     if (this._session && this.loop) this._armListen(this.resumeDelay);
-    else this._session = false;
+    else {
+      this._session = false;
+      clearTimeout(this._resumeTimer);
+      try { this._recognition?.stop(); } catch { /* already stopped */ }
+    }
   },
 
   speakLast() {
