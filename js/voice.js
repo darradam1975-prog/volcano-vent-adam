@@ -420,7 +420,7 @@ const adamVoice = {
     if (/\bvents?\b/.test(t)) score += 5;
     if (/\bvolcano\b/.test(t)) score += 2;
     if (/\blucky\s*charms?\b/.test(t)) score += 2;
-    if (/\brents?\b|\bbents?\b/.test(t)) score -= 4;
+    if (/\brents?\b|\bbents?\b|\bmoons?\b|\bevents?\b|\bmeant\b|\bmint\b/.test(t)) score -= 4;
     return score;
   },
 
@@ -443,11 +443,11 @@ const adamVoice = {
   _correctHeard(text) {
     const housing = /\b(?:pay|paying|paid|owe|owing|my|monthly|apartment|house|due)\s+$/i;
     const cue = /^(?:the|a|an|about|on|onto|volcano|hit|miss|missed|that|this|your)$/i;
-    return String(text || '').replace(/\b(rent|rents|bent|bents)\b/gi, (word, _g, offset, whole) => {
+    return String(text || '').replace(/\b(rents?|bents?|moons?|events?|meant|mint)\b/gi, (word, _g, offset, whole) => {
       const before = whole.slice(Math.max(0, offset - 32), offset);
       if (housing.test(before)) return word;
       const prev = (before.match(/([A-Za-z]+)\s+$/) || [])[1] || '';
-      const only = /^(?:a |an |the )?(?:rent|rents|bent|bents)$/i.test(whole.trim());
+      const only = /^(?:a |an |the )?(?:rents?|bents?|moons?|events?|meant|mint)$/i.test(whole.trim());
       const asking = /^(?:tell me|what|whats|what's|how|about|explain|describe|talk)\b/i.test(whole.trim());
       if (!cue.test(prev) && !only && !asking) return word;
       const next = /s$/i.test(word) ? 'vents' : 'vent';

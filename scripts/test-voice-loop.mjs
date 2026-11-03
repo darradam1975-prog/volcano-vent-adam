@@ -156,6 +156,9 @@ check('AI prefers the TTS installed on this device', adamVoice._pickVoice()?.voi
 check('tell me about the rent is the vent', adamVoice._correctHeard('tell me about the rent') === 'tell me about the vent');
 check('what is the rent is the vent', adamVoice._correctHeard('what is the rent') === 'what is the vent');
 check('housing rent stays rent', adamVoice._correctHeard('I need to pay rent') === 'I need to pay rent');
+check('tell me about the moon is the vent', adamVoice._correctHeard('tell me about the moon') === 'tell me about the vent');
+check('full moon stays the moon', adamVoice._correctHeard('look at the full moon') === 'look at the full moon');
+check('tell me about the event is the vent', adamVoice._correctHeard('tell me about the event') === 'tell me about the vent');
 check('vent alternative beats rent', adamVoice._bestAlternative({
   0: { transcript: 'tell me about the rent' },
   1: { transcript: 'tell me about the vent' },
@@ -175,6 +178,20 @@ adamVoice._recognition.onresult({
 });
 check('heard rent is sent as vent', sent.at(-1) === 'tell me about the vent' && sent.length === sentBeforeRent + 1);
 check('chat draft shows vent', drafts.at(-1) === 'tell me about the vent');
+adamVoice.stopTalk();
+
+adamVoice.loop = true;
+adamVoice.startTalk();
+adamVoice._recognition.onresult({
+  resultIndex: 0,
+  results: [{
+    0: { transcript: 'tell me about the moon' },
+    isFinal: true,
+    length: 1
+  }]
+});
+check('heard moon is sent as vent', sent.at(-1) === 'tell me about the vent');
+check('chat draft shows vent for moon', drafts.at(-1) === 'tell me about the vent');
 adamVoice.stopTalk();
 
 console.log(`\nPassed ${ok} / ${ok + fail}`);
