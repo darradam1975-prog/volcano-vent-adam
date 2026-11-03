@@ -949,10 +949,18 @@ const adamVoice = {
 
   stripMarkdown(text) {
     return String(text || '')
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+      .replace(/<img\b[^>]*>/gi, ' ')
       .replace(/\*\*([^*]+)\*\*/g, '$1')
       .replace(/\*([^*]+)\*/g, '$1')
-      .replace(/•/g, '')
+      .replace(/[→➔➜⇒⟶►▶]/g, ' to ')
+      .replace(/[·•∙⋅●]/g, ', ')
+      .replace(/…|\.{3,}/g, ', ')
+      .replace(/\bimages?\b/gi, ' ')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, ' ')
       .replace(/\n+/g, '. ')
+      .replace(/\s+/g, ' ')
+      .replace(/\s+([,.;!?])/g, '$1')
       .trim();
   },
 

@@ -2,7 +2,7 @@
  * Adam The Volcano Vent Bot — dedicated Volcano Vent Dice rules companion.
  */
 const ADAM_BOT_NAME = 'Adam The Volcano Vent Bot';
-const ADAM_SOURCE = '🌋 ' + ADAM_BOT_NAME;
+const ADAM_SOURCE = '🎲🎲 ' + ADAM_BOT_NAME;
 
 const adam = {
   conversationHistory: [],

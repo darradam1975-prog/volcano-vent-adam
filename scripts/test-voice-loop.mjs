@@ -375,5 +375,8 @@ check('too many glitches ask for another tap', adamVoice._session === true && /T
 adamVoice.stopTalk();
 adamVoice._navigator = null;
 
+const spokenClean = adamVoice.stripMarkdown('Countdown **6→5→4**. 6 dice · 3 tokens. 🎲 image 🌋');
+check('speech skips the arrow, the dot, and the image', !/[→·•🎲🌋]/.test(spokenClean) && !/\bimage\b/i.test(spokenClean) && /6 to 5 to 4/.test(spokenClean) && /6 dice/.test(spokenClean) && /3 tokens/.test(spokenClean));
+
 console.log(`\nPassed ${ok} / ${ok + fail}`);
 if (fail) process.exit(1);
