@@ -231,5 +231,26 @@ adamVoice.toggleTalk();
 check('mic tap while Adam speaks listens for a correction', adamVoice._session === true && adamVoice._phase === 'listening');
 adamVoice.stopTalk();
 
+const spokenBeforeCut = spoken.length;
+adamVoice.autoRead = true;
+adamVoice._session = true;
+adamVoice.speak('Alpha sentence. Beta sentence.');
+check('Adam starts with the first sentence only', spoken.at(-1) === 'Alpha sentence.');
+check('the rest of the line is still queued', adamVoice._queue[0] === 'Beta sentence.');
+adamVoice.interrupt();
+check('interrupt throws away the rest', adamVoice._queue.length === 0);
+check('interrupt does not speak the next sentence', spoken.slice(spokenBeforeCut).every(line => line !== 'Beta sentence.'));
+adamVoice._ignoreUntil = Date.now() + 5000;
+adamVoice._phase = 'listening';
+adamVoice._sentThisListen = false;
+const sentBeforeTail = sent.length;
+adamVoice._onHeard({
+  resultIndex: 0,
+  results: [{ 0: { transcript: 'tail of the last line' }, isFinal: true, length: 1 }]
+});
+check('speaker tail is not a new turn', sent.length === sentBeforeTail);
+adamVoice._ignoreUntil = 0;
+adamVoice.stopTalk();
+
 console.log(`\nPassed ${ok} / ${ok + fail}`);
 if (fail) process.exit(1);
