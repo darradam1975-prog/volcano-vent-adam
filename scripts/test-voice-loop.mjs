@@ -110,6 +110,7 @@ adamVoice.stopTalk();
 await new Promise(resolve => setTimeout(resolve, 30));
 check('stop closes the mic', starts === beforeStop && adamVoice._phase === 'idle' && adamVoice._session === false);
 
+clearTimeout(adamVoice._voiceWatch);
 adamVoice.voices = [
   { name: 'Microsoft David', lang: 'en-US', voiceURI: 'david' },
   { name: 'Microsoft Zira', lang: 'en-US', voiceURI: 'zira' },
@@ -125,6 +126,15 @@ adamVoice.voiceUri = 'david';
 check('AI keeps the chosen male voice', adamVoice._pickVoice()?.name === 'Microsoft David');
 adamVoice.lang = 'en-GB';
 check('AI listens in the chosen language', adamVoice._listenLang() === 'en-GB');
+
+adamVoice.voices = [
+  { name: 'Google US English', lang: 'en-US', voiceURI: 'google', localService: false },
+  { name: 'My Personal TTS', lang: '', voiceURI: 'custom', localService: true }
+];
+adamVoice.gender = 'any';
+adamVoice.lang = '';
+adamVoice.voiceUri = '';
+check('AI prefers the TTS installed on this device', adamVoice._pickVoice()?.voiceURI === 'custom');
 
 console.log(`\nPassed ${ok} / ${ok + fail}`);
 if (fail) process.exit(1);

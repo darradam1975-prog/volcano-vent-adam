@@ -14,7 +14,7 @@ const ADAM_AI_LANGS = {
   en: 'English'
 };
 
-const ADAM_AI_MALE = ['Daniel', 'David', 'Mark', 'Guy', 'George', 'Ryan', 'Eric', 'Alex', 'Fred', 'James', 'Christopher', 'Brian'];
+const ADAM_AI_MALE = ['Daniel', 'David', 'Mark', 'Guy', 'George', 'Ryan', 'Eric', 'Alex', 'Fred', 'James', 'Christopher', 'Brian', 'Andrew', 'Roger', 'Steffan', 'Brandon', 'Davis', 'Connor', 'William', 'Tony'];
 const ADAM_AI_FEMALE = /female|woman|girl|zira|samantha|karen|susan|hazel|linda|aria|jenny|emma|lisa|nancy|sara|sonia|helen|laura|olivia|michelle|catherine|victoria|fiona|moira|tessa|kate|serena|salli|ivy|joanna|kimberly|kendra|amy/i;
 
 const adamVoice = {
@@ -62,12 +62,32 @@ const adamVoice = {
     if (this.supported) {
       speechSynthesis.addEventListener('voiceschanged', () => this._loadVoices());
       this._loadVoices();
+      this._watchVoices();
     }
     this._syncToggle();
     this._syncMic();
     this._syncSliderLabels();
     this._bind();
     this._fillAiVoices();
+  },
+
+  refreshVoices() {
+    this._loadVoices();
+    this._watchVoices();
+  },
+
+  _watchVoices() {
+    if (!this.supported) return;
+    let tries = 0;
+    const tick = () => {
+      const before = this.voices.length;
+      this._loadVoices();
+      tries += 1;
+      if (this.voices.length > before || tries >= 10) return;
+      this._voiceWatch = setTimeout(tick, 400);
+    };
+    clearTimeout(this._voiceWatch);
+    this._voiceWatch = setTimeout(tick, 200);
   },
 
   _bind() {
@@ -113,7 +133,10 @@ const adamVoice = {
   },
 
   _loadVoices() {
-    this.voices = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang || '') || /^en/i.test(v.name || ''));
+    if (!this.supported) return;
+    const next = speechSynthesis.getVoices().filter(v => v && (v.name || v.voiceURI));
+    if (!next.length && this.voices.length) return;
+    this.voices = next;
     this._fillAiVoices();
   },
 
@@ -146,7 +169,7 @@ const adamVoice = {
 
   _matchesGender(voice) {
     if (this.gender === 'female') return this._isFemale(voice);
-    if (this.gender === 'male') return this._isMale(voice);
+    if (this.gender === 'male') return this._isMale(voice) || (voice.localService && !this._isFemale(voice));
     return true;
   },
 
@@ -178,7 +201,9 @@ const adamVoice = {
   _pickVoice() {
     const chosen = this.voiceUri && this.voices.find(v => this._voiceId(v) === this.voiceUri);
     if (chosen && this._matchesLang(chosen) && this._matchesGender(chosen)) return chosen;
-    const pool = this._filteredVoices();
+    let pool = this._filteredVoices();
+    const local = pool.filter(v => v.localService);
+    if (local.length) pool = local;
     if (this.gender !== 'female') {
       for (const name of ADAM_AI_MALE) {
         const hit = pool.find(v => new RegExp(`\\b${name}\\b`, 'i').test(v.name || ''));
@@ -186,7 +211,17 @@ const adamVoice = {
       }
     }
     if (pool.length) return pool[0];
-    return this.voices[0] || null;
+    const anyLocal = this.voices.find(v => v.localService);
+    return anyLocal || this.voices[0] || null;
+  },
+
+  _freshVoice(voice) {
+    if (!voice || !this.supported) return voice || null;
+    const id = this._voiceId(voice);
+    const live = speechSynthesis.getVoices();
+    return live.find(v => this._voiceId(v) === id)
+      || live.find(v => v.name === voice.name && v.lang === voice.lang)
+      || voice;
   },
 
   _listenLang() {
@@ -234,21 +269,33 @@ const adamVoice = {
       list.forEach(voice => {
         const opt = document.createElement('option');
         opt.value = this._voiceId(voice);
-        opt.textContent = `${voice.name} — ${this._langLabel(voice.lang)}`;
+        const place = voice.localService ? 'this device' : 'browser';
+        const lang = this._langLabel(voice.lang) || 'voice';
+        opt.textContent = `${voice.name} — ${lang} — ${place}`;
         voiceSel.appendChild(opt);
       });
-      const stillThere = previous && list.some(v => this._voiceId(v) === previous);
-      this.voiceUri = stillThere ? previous : '';
-      if (!stillThere) localStorage.setItem('adam-ai-voice', '');
-      voiceSel.value = this.voiceUri;
+      const inList = previous && list.some(v => this._voiceId(v) === previous);
+      const inAll = previous && this.voices.some(v => this._voiceId(v) === previous);
+      if (inList) {
+        this.voiceUri = previous;
+      } else if (previous && this.voices.length && !inAll) {
+        this.voiceUri = '';
+        localStorage.setItem('adam-ai-voice', '');
+      }
+      voiceSel.value = inList ? previous : '';
     }
 
     if (count) {
       const total = this.voices.length;
       const shown = list.length;
-      count.textContent = total
-        ? `${shown} of ${total} installed English voices. Add more in Windows Settings, then reopen AI.`
-        : 'No English voice is installed yet. Add one in Windows Settings, then reopen AI.';
+      const local = this.voices.filter(v => v.localService).length;
+      if (!total) {
+        count.textContent = 'No TTS reported yet. Tap Preview AI voice so this browser can load the voices installed on this device.';
+      } else if (!shown) {
+        count.textContent = `${total} voices found, none match this filter. Choose All to see your TTS.`;
+      } else {
+        count.textContent = `${shown} shown. ${local} of ${total} are installed on this device. Voices marked “browser” are the browser’s own.`;
+      }
     }
   },
 
@@ -258,13 +305,14 @@ const adamVoice = {
       return;
     }
     if (this._session || this._phase !== 'idle') this.stopTalk();
-    const voice = this._pickVoice();
+    this._loadVoices();
+    const voice = this._freshVoice(this._pickVoice());
     const gen = ++this._speakGen;
     speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance('Hi, I am Adam, your Volcano Vent guide. Ask me about the Vent, the countdown, or a lucky charm.');
     if (voice) {
       utter.voice = voice;
-      utter.lang = voice.lang || this._listenLang();
+      if (voice.lang) utter.lang = voice.lang;
     } else {
       utter.lang = this._listenLang();
     }
@@ -479,12 +527,14 @@ const adamVoice = {
     this._syncMic();
     try { this._recognition?.stop(); } catch { /* not listening */ }
     speechSynthesis.cancel();
+    if (typeof speechSynthesis.resume === 'function') speechSynthesis.resume();
 
     const utter = new SpeechSynthesisUtterance(this.stripMarkdown(text));
-    const voice = this._pickVoice();
+    this._loadVoices();
+    const voice = this._freshVoice(this._pickVoice());
     if (voice) {
       utter.voice = voice;
-      utter.lang = this.lang || voice.lang || 'en-US';
+      if (voice.lang) utter.lang = voice.lang;
     } else {
       utter.lang = this._listenLang();
     }

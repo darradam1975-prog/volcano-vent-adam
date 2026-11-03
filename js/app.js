@@ -154,6 +154,7 @@ function openSettings() {
   adamAgeVerifier.initSettingsPicker();
   adamLlmSettings?.initSettingsUi?.();
   adamConversations?._updateSyncHint?.();
+  adamVoice?.refreshVoices?.();
 }
 
 function closeSettings() {
