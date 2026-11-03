@@ -719,6 +719,26 @@ body.modal-open {
   display: none;
 }
 
+.voice-hangup {
+  display: block;
+  margin: 6px 14px 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.voice-hangup.hidden {
+  display: none;
+}
+
 .chat-input-row {
   display: flex;
   gap: 8px;

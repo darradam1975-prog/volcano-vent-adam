@@ -295,7 +295,7 @@ check('a correction interrupts Adam', sent.at(-1) === 'no I meant the beads' && 
 adamVoice._phase = 'speaking';
 adamVoice._session = true;
 adamVoice.toggleTalk();
-check('mic tap hangs up the call', adamVoice._session === false && adamVoice._phase === 'idle');
+check('mic tap during speech keeps the call', adamVoice._session === true && adamVoice._phase === 'listening');
 
 const spokenBeforeCut = spoken.length;
 adamVoice.autoRead = true;
@@ -318,46 +318,52 @@ check('speaker tail is not a new turn', sent.length === sentBeforeTail);
 adamVoice._ignoreUntil = 0;
 adamVoice.stopTalk();
 
-const startsBeforeDeny = starts;
+let asked = 0;
 adamVoice._navigator = {
-  userAgent: 'node-test',
+  userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile',
   mediaDevices: {
     getUserMedia() {
+      asked += 1;
       const err = new Error('denied');
       err.name = 'NotAllowedError';
       return Promise.reject(err);
     }
   }
 };
+adamVoice.stopTalk();
+adamVoice._recognition = null;
+adamVoice._needUnlock = false;
+adamVoice._heardOnce = false;
+const startsBeforeCall = starts;
+adamVoice.startTalk();
+check('the first tap listens without asking chrome first', starts === startsBeforeCall + 1 && asked === 0 && adamVoice._phase === 'listening');
+check('mobile chrome does not use continuous capture', adamVoice._recognition.continuous === false);
+adamVoice._heardOnce = false;
+adamVoice._onListenError({ error: 'not-allowed' });
+check('a denied mic explains the lock icon', adamVoice._session === false && adamVoice._needUnlock === true && /lock icon/i.test(adamVoice._statusText) && /tap the microphone/i.test(adamVoice._statusText));
+
+adamVoice._navigator.mediaDevices.getUserMedia = () => {
+  asked += 1;
+  return Promise.resolve({ getTracks: () => [{ stop() {} }] });
+};
+const startsAfterDeny = starts;
 adamVoice.startTalk();
 await new Promise(resolve => setTimeout(resolve, 30));
-check('a blocked mic does not open', adamVoice._session === false && starts === startsBeforeDeny);
-check('a blocked mic explains how to allow it', /lock icon/i.test(adamVoice._statusText) && /Call Adam/i.test(adamVoice._statusText));
-
-adamVoice._navigator = {
-  userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile',
-  mediaDevices: {
-    getUserMedia() {
-      return Promise.resolve({ getTracks: () => [{ stop() {} }] });
-    }
-  }
-};
+check('allowing the mic waits for another tap', asked === 1 && starts === startsAfterDeny && /again/i.test(adamVoice._statusText));
 adamVoice._recognition = null;
-const startsBeforeAllow = starts;
-const sentBeforeAllow = sent.length;
 adamVoice.startTalk();
-check('the phone prompt does not open the mic yet', starts === startsBeforeAllow && sent.length === sentBeforeAllow);
-await new Promise(resolve => setTimeout(resolve, 320));
-check('allowing the mic opens the call', starts === startsBeforeAllow + 1 && adamVoice._phase === 'listening' && adamVoice._micGranted === true);
-check('mobile chrome does not use continuous capture', adamVoice._recognition.continuous === false);
-adamVoice._micRetries = 0;
+check('the next tap hears you', starts === startsAfterDeny + 1 && adamVoice._phase === 'listening' && asked === 1);
+
+adamVoice._heardOnce = true;
+adamVoice._glitchTries = 0;
+adamVoice._session = true;
+adamVoice._phase = 'listening';
+const startsOnGlitch = starts;
 adamVoice._onListenError({ error: 'not-allowed' });
-check('an allowed mic is not marked blocked on a glitch', adamVoice._session === true);
-await new Promise(resolve => setTimeout(resolve, 450));
-check('the call tries the mic again', starts === startsBeforeAllow + 2);
-adamVoice._micRetries = 3;
+check('a later mic glitch keeps the call and retries', adamVoice._session === true && starts === startsOnGlitch + 1);
+adamVoice._glitchTries = 4;
 adamVoice._onListenError({ error: 'not-allowed' });
-check('repeated mic failures explain the lock icon', adamVoice._session === false && /lock icon/i.test(adamVoice._statusText));
+check('too many glitches ask for another tap', adamVoice._session === true && /Tap the microphone/i.test(adamVoice._statusText));
 adamVoice.stopTalk();
 adamVoice._navigator = null;
 

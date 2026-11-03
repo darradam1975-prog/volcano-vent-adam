@@ -110,6 +110,10 @@ const adamVoice = {
       else this.stop();
     });
     this.micBtn?.addEventListener('click', () => this.toggleTalk());
+    const hangup = document.getElementById('voice-hangup');
+    if (hangup && typeof hangup.addEventListener === 'function') {
+      hangup.addEventListener('click', () => this.stopTalk());
+    }
     if (typeof document.addEventListener === 'function') {
       document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
@@ -405,8 +409,8 @@ const adamVoice = {
     this._statusLocked = true;
     const mobile = /Android|iPhone|iPad|Mobile/i.test(this._nav().userAgent || '');
     this._setStatus(mobile
-      ? 'Chrome is blocking the microphone. Tap the lock icon left of the address bar, open Permissions, set Microphone to Allow, reload, then tap Call Adam. If Microphone is missing there, open the phone Settings, Apps, Chrome, Permissions, Microphone, Allow, then reload.'
-      : 'Chrome is blocking the microphone. Click the lock icon in the address bar, set Microphone to Allow, reload, then tap Call Adam.');
+      ? 'Chrome is blocking the microphone. Tap the lock icon left of the address bar, open Permissions, set Microphone to Allow, reload, then tap the microphone. If Microphone is missing there, open the phone Settings, Apps, Chrome, Permissions, Microphone, Allow, then reload.'
+      : 'Chrome is blocking the microphone. Click the lock icon in the address bar, set Microphone to Allow, reload, then tap the microphone.');
   },
 
   _syncMic() {
@@ -414,17 +418,19 @@ const adamVoice = {
     const live = this._session || this._phase !== 'idle';
     if (btn) {
       btn.classList.toggle('listening', this._phase === 'listening');
-      btn.classList.toggle('speaking', this._phase === 'speaking' || this._phase === 'thinking');
+      btn.classList.toggle('speaking', false);
       btn.setAttribute('aria-pressed', live ? 'true' : 'false');
-      const label = live ? 'Hang up' : 'Call Adam';
+      const label = live ? 'Listening' : 'Call Adam';
       btn.title = label;
       btn.setAttribute('aria-label', label);
       const icon = btn.querySelector('.voice-mic-icon');
-      if (icon) icon.textContent = live ? 'End' : '🎤';
+      if (icon) icon.textContent = '🎤';
     }
+    const hangup = document.getElementById('voice-hangup');
+    if (hangup) hangup.classList.toggle('hidden', !live);
     if (this._phase === 'listening') this._setStatus(this._listenHint || 'On a call. I’m listening.');
     else if (this._phase === 'thinking') this._setStatus('One moment.');
-    else if (this._phase === 'speaking') this._setStatus('Adam is talking. Speak to jump in.');
+    else if (this._phase === 'speaking') this._setStatus('Adam is talking. Just speak.');
     else if (!this._statusLocked) this._setStatus('');
   },
 
@@ -441,6 +447,8 @@ const adamVoice = {
     rec.onstart = () => {
       this._bargeTries = 0;
       this._micRetries = 0;
+      this._glitchTries = 0;
+      this._heardOnce = true;
       this.listening = true;
       if (this._phase === 'thinking' || !this._session) {
         try { rec.stop(); } catch { /* already stopping */ }
@@ -695,20 +703,17 @@ const adamVoice = {
     }
     if (code === 'aborted' || code === 'no-speech') return;
     if (code === 'not-allowed' || code === 'service-not-allowed') {
-      if (this._micGranted && this._session && (this._micRetries || 0) < 3) {
-        this._micRetries = (this._micRetries || 0) + 1;
-        this._armListen(400);
-        return;
-      }
-      this._micRetries = 0;
-      if (code === 'service-not-allowed' && this._micGranted) {
-        this._session = false;
-        this._phase = 'idle';
-        this._syncMic();
+      if (this._heardOnce && this._session) {
+        this._glitchTries = (this._glitchTries || 0) + 1;
+        if (this._glitchTries <= 4) {
+          this._beginListen();
+          return;
+        }
         this._statusLocked = true;
-        this._setStatus('The microphone is allowed, but Chrome’s speech service blocked the call. Reload the page and tap Call Adam.');
+        this._setStatus('Tap the microphone so I can hear you.');
         return;
       }
+      this._needUnlock = true;
       this._showMicBlocked();
       return;
     }
@@ -730,7 +735,18 @@ const adamVoice = {
     }
     if (this._phase === 'listening' && this._session && !this._sentThisListen) {
       this._stashFinals();
-      this._armListen(100);
+      const since = Date.now() - (this._listenStarted || 0);
+      if (since < 250 && !this._liveLine()) {
+        this._emptyStarts = (this._emptyStarts || 0) + 1;
+        if (this._emptyStarts > 6) {
+          this._statusLocked = true;
+          this._setStatus('Tap the microphone so I can hear you.');
+          return;
+        }
+      } else {
+        this._emptyStarts = 0;
+      }
+      this._beginListen();
       return;
     }
     if (!this._session || this._phase === 'thinking' || this._phase === 'speaking') {
@@ -754,6 +770,7 @@ const adamVoice = {
     if (!rec) return;
     rec.lang = this._listenLang();
     if (this._phase !== 'speaking') this._phase = 'listening';
+    this._listenStarted = Date.now();
     this._syncMic();
     try {
       rec.start();
@@ -764,8 +781,20 @@ const adamVoice = {
   },
 
   toggleTalk() {
-    if (this._session || this._phase !== 'idle') this.stopTalk();
-    else this.startTalk();
+    if (!this._session && this._phase === 'idle') {
+      this.startTalk();
+      return;
+    }
+    if (this._phase === 'speaking' || this._phase === 'thinking') {
+      this._cutSpeech();
+      this._session = true;
+      this._sentThisListen = false;
+      this._phase = 'listening';
+      this._listenHint = 'Go ahead.';
+    }
+    this._emptyStarts = 0;
+    this._glitchTries = 0;
+    this._beginListen();
   },
 
   _chunks(text) {
@@ -822,44 +851,45 @@ const adamVoice = {
     }, 900);
   },
 
-  _openCall(delay) {
+  _openCall() {
     this.autoRead = true;
     localStorage.setItem('adam-voice-auto', '1');
     if (this.autoInput) this.autoInput.checked = true;
     this._syncToggle();
     this.stop();
-    if (this.supported) {
-      const prime = new SpeechSynthesisUtterance(' ');
-      prime.volume = 0;
-      try { speechSynthesis.speak(prime); } catch { /* gesture already used */ }
-    }
     this._clearTranscript();
     this._sentThisListen = false;
     this._listenHint = '';
     this._session = true;
     this._statusLocked = false;
-    if (delay) this._armListen(delay);
-    else this._beginListen();
+    this._needUnlock = false;
+    this._heardOnce = false;
+    this._glitchTries = 0;
+    this._emptyStarts = 0;
+    // Start in this tap. A wait, or grabbing the mic first, makes Android Chrome drop the tap.
+    this._beginListen();
+    if (this.supported) {
+      const prime = new SpeechSynthesisUtterance(' ');
+      prime.volume = 0;
+      try { speechSynthesis.speak(prime); } catch { /* gesture already used */ }
+    }
   },
 
-  startTalk() {
-    this._statusLocked = false;
-    if (!this.listenSupported) {
-      this._setStatus('This browser cannot hear you. Use Chrome or Edge, then tap Call Adam.');
-      return;
-    }
+  _askForAllow() {
     const ask = this._askMic();
     if (!ask) {
-      this._openCall(0);
+      this._showMicBlocked();
       return;
     }
     if (this._asking) return;
     this._asking = true;
-    this._setStatus('Allow the microphone, then the call starts.');
+    this._setStatus('Allow the microphone, then tap the microphone again.');
     ask.then(result => {
       this._asking = false;
-      if (result === 'denied') {
-        this._showMicBlocked();
+      if (result === 'granted') {
+        this._needUnlock = false;
+        this._statusLocked = true;
+        this._setStatus('Microphone allowed. Tap the microphone again.');
         return;
       }
       if (result === 'missing') {
@@ -870,8 +900,22 @@ const adamVoice = {
         this._setStatus('No microphone found on this phone.');
         return;
       }
-      this._openCall(250);
+      this._needUnlock = true;
+      this._showMicBlocked();
     });
+  },
+
+  startTalk() {
+    this._statusLocked = false;
+    if (!this.listenSupported) {
+      this._setStatus('This browser cannot hear you. Use Chrome or Edge, then tap the microphone.');
+      return;
+    }
+    if (this._needUnlock) {
+      this._askForAllow();
+      return;
+    }
+    this._openCall();
   },
 
   stopTalk() {
