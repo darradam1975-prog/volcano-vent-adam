@@ -711,6 +711,7 @@ body.modal-open {
   padding: 8px 14px 0;
   font-size: 0.78rem;
   font-weight: 700;
+  line-height: 1.35;
   color: var(--vent);
 }
 

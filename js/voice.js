@@ -373,9 +373,40 @@ const adamVoice = {
   },
 
   _setStatus(text) {
+    this._statusText = text || '';
     if (!this.statusEl) return;
-    this.statusEl.textContent = text || '';
-    this.statusEl.classList.toggle('hidden', !text);
+    this.statusEl.textContent = this._statusText;
+    this.statusEl.classList.toggle('hidden', !this._statusText);
+  },
+
+  _nav() {
+    return this._navigator || globalThis.navigator || {};
+  },
+
+  _askMic() {
+    const media = this._nav().mediaDevices;
+    if (typeof media?.getUserMedia !== 'function') return null;
+    // Called in the tap, before any wait, so mobile Chrome can show Allow.
+    return media.getUserMedia.call(media, { audio: true }).then(stream => {
+      try { stream.getTracks().forEach(track => track.stop()); } catch { /* already stopped */ }
+      this._micGranted = true;
+      return 'granted';
+    }).catch(err => {
+      const name = err?.name || '';
+      if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'missing';
+      return 'denied';
+    });
+  },
+
+  _showMicBlocked() {
+    this._session = false;
+    this._phase = 'idle';
+    this._syncMic();
+    this._statusLocked = true;
+    const mobile = /Android|iPhone|iPad|Mobile/i.test(this._nav().userAgent || '');
+    this._setStatus(mobile
+      ? 'Chrome is blocking the microphone. Tap the lock icon left of the address bar, open Permissions, set Microphone to Allow, reload, then tap Call Adam. If Microphone is missing there, open the phone Settings, Apps, Chrome, Permissions, Microphone, Allow, then reload.'
+      : 'Chrome is blocking the microphone. Click the lock icon in the address bar, set Microphone to Allow, reload, then tap Call Adam.');
   },
 
   _syncMic() {
@@ -403,11 +434,13 @@ const adamVoice = {
     const rec = new Ctor();
     rec.lang = 'en-US';
     rec.interimResults = true;
-    rec.continuous = true;
+    const mobile = /Android|iPhone|iPad|Mobile/i.test(this._nav().userAgent || '');
+    rec.continuous = !mobile;
     rec.maxAlternatives = 5;
     this._biasRecognition(rec);
     rec.onstart = () => {
       this._bargeTries = 0;
+      this._micRetries = 0;
       this.listening = true;
       if (this._phase === 'thinking' || !this._session) {
         try { rec.stop(); } catch { /* already stopping */ }
@@ -662,12 +695,21 @@ const adamVoice = {
     }
     if (code === 'aborted' || code === 'no-speech') return;
     if (code === 'not-allowed' || code === 'service-not-allowed') {
-      this._session = false;
-      this._phase = 'idle';
-      this._statusLocked = true;
-      this._setStatus('Microphone is blocked. Allow the mic for this site, then tap AI again.');
-      this._syncMic();
-      this._statusLocked = false;
+      if (this._micGranted && this._session && (this._micRetries || 0) < 3) {
+        this._micRetries = (this._micRetries || 0) + 1;
+        this._armListen(400);
+        return;
+      }
+      this._micRetries = 0;
+      if (code === 'service-not-allowed' && this._micGranted) {
+        this._session = false;
+        this._phase = 'idle';
+        this._syncMic();
+        this._statusLocked = true;
+        this._setStatus('The microphone is allowed, but Chrome’s speech service blocked the call. Reload the page and tap Call Adam.');
+        return;
+      }
+      this._showMicBlocked();
       return;
     }
     if (code === 'audio-capture') {
@@ -780,12 +822,7 @@ const adamVoice = {
     }, 900);
   },
 
-  startTalk() {
-    this._statusLocked = false;
-    if (!this.listenSupported) {
-      this._setStatus('This browser cannot hear you. Use Chrome or Edge, then tap AI.');
-      return;
-    }
+  _openCall(delay) {
     this.autoRead = true;
     localStorage.setItem('adam-voice-auto', '1');
     if (this.autoInput) this.autoInput.checked = true;
@@ -794,13 +831,47 @@ const adamVoice = {
     if (this.supported) {
       const prime = new SpeechSynthesisUtterance(' ');
       prime.volume = 0;
-      speechSynthesis.speak(prime);
+      try { speechSynthesis.speak(prime); } catch { /* gesture already used */ }
     }
     this._clearTranscript();
     this._sentThisListen = false;
     this._listenHint = '';
     this._session = true;
-    this._beginListen();
+    this._statusLocked = false;
+    if (delay) this._armListen(delay);
+    else this._beginListen();
+  },
+
+  startTalk() {
+    this._statusLocked = false;
+    if (!this.listenSupported) {
+      this._setStatus('This browser cannot hear you. Use Chrome or Edge, then tap Call Adam.');
+      return;
+    }
+    const ask = this._askMic();
+    if (!ask) {
+      this._openCall(0);
+      return;
+    }
+    if (this._asking) return;
+    this._asking = true;
+    this._setStatus('Allow the microphone, then the call starts.');
+    ask.then(result => {
+      this._asking = false;
+      if (result === 'denied') {
+        this._showMicBlocked();
+        return;
+      }
+      if (result === 'missing') {
+        this._session = false;
+        this._phase = 'idle';
+        this._syncMic();
+        this._statusLocked = true;
+        this._setStatus('No microphone found on this phone.');
+        return;
+      }
+      this._openCall(250);
+    });
   },
 
   stopTalk() {

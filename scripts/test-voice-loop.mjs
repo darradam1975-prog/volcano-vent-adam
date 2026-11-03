@@ -318,5 +318,48 @@ check('speaker tail is not a new turn', sent.length === sentBeforeTail);
 adamVoice._ignoreUntil = 0;
 adamVoice.stopTalk();
 
+const startsBeforeDeny = starts;
+adamVoice._navigator = {
+  userAgent: 'node-test',
+  mediaDevices: {
+    getUserMedia() {
+      const err = new Error('denied');
+      err.name = 'NotAllowedError';
+      return Promise.reject(err);
+    }
+  }
+};
+adamVoice.startTalk();
+await new Promise(resolve => setTimeout(resolve, 30));
+check('a blocked mic does not open', adamVoice._session === false && starts === startsBeforeDeny);
+check('a blocked mic explains how to allow it', /lock icon/i.test(adamVoice._statusText) && /Call Adam/i.test(adamVoice._statusText));
+
+adamVoice._navigator = {
+  userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile',
+  mediaDevices: {
+    getUserMedia() {
+      return Promise.resolve({ getTracks: () => [{ stop() {} }] });
+    }
+  }
+};
+adamVoice._recognition = null;
+const startsBeforeAllow = starts;
+const sentBeforeAllow = sent.length;
+adamVoice.startTalk();
+check('the phone prompt does not open the mic yet', starts === startsBeforeAllow && sent.length === sentBeforeAllow);
+await new Promise(resolve => setTimeout(resolve, 320));
+check('allowing the mic opens the call', starts === startsBeforeAllow + 1 && adamVoice._phase === 'listening' && adamVoice._micGranted === true);
+check('mobile chrome does not use continuous capture', adamVoice._recognition.continuous === false);
+adamVoice._micRetries = 0;
+adamVoice._onListenError({ error: 'not-allowed' });
+check('an allowed mic is not marked blocked on a glitch', adamVoice._session === true);
+await new Promise(resolve => setTimeout(resolve, 450));
+check('the call tries the mic again', starts === startsBeforeAllow + 2);
+adamVoice._micRetries = 3;
+adamVoice._onListenError({ error: 'not-allowed' });
+check('repeated mic failures explain the lock icon', adamVoice._session === false && /lock icon/i.test(adamVoice._statusText));
+adamVoice.stopTalk();
+adamVoice._navigator = null;
+
 console.log(`\nPassed ${ok} / ${ok + fail}`);
 if (fail) process.exit(1);
