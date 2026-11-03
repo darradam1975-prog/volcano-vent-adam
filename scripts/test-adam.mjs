@@ -384,5 +384,20 @@ check('rulebooks to quote', /Home Rule Guide|quote the rules/i.test(adam.respond
 check('quote the rules lecture', /Quoted from|Volcano Vent Dice Home Rule Guide|countdown/i.test(adam.respond('quote the rules')));
 check('full rules cites guide', /Home Rule Guide|volcano-vent-adam/i.test(adam.respond('full rules')));
 
+const missed = adam.respond('what if I miss the number');
+check('a miss gets a detailed ruling', /Here is the ruling/i.test(missed) && /rescue|fresh roll/i.test(missed) && /lucky charm/i.test(missed) && /next player/i.test(missed));
+check('a miss ruling is not the rough guide', !/rough guide/i.test(missed));
+const aside = adam.respond('if I set two dice aside can the next player still hit five');
+check('setting dice aside explains who rolls next', /Here is the ruling/i.test(aside) && /next player/i.test(aside) && /set aside|aside/i.test(aside));
+check('pizza stays off the rule sheet', !/Here is the ruling/i.test(adam.respond('what pizza should I order tonight')));
+check('yahtzee stays off the ruling', !/Here is the ruling/i.test(adam.respond('how do you play yahtzee')));
+check('both prompts carry the game logic', /Game logic:/.test(adamLlm.buildSystemPrompt()) && /fresh roll/.test(adamLlm.buildSystemPrompt()) && /Game logic:/.test(adamLlm.buildOffTopicSystemPrompt()) && /fresh roll/.test(adamLlm.buildOffTopicSystemPrompt()));
+check('rule prompt asks for the detailed ruling', /detailed ruling/i.test(adamLlm.buildSystemPrompt()));
+check('please still does not dump the rule sheet', !/Turn flow|Here is the ruling/i.test(adam.respond('please')));
+localStorage.removeItem('adam-birthday');
+const lives = adam.respond('do I lose a token when I make the tribute');
+check('vent lives are not a betting lock', !/birthday|18 or older/i.test(lives) && /Here is the ruling/i.test(lives) && /does not cost a token/i.test(lives));
+localStorage.setItem('adam-birthday', JSON.stringify({ month: 1, day: 1, year: 1990 }));
+
 console.log('\nPassed', ok, '/', total);
 process.exit(ok === total ? 0 : 1);

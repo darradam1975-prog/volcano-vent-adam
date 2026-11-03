@@ -132,12 +132,19 @@ const adamAgeVerifier = {
     ) {
       return false;
     }
-    return (
+    if (
       /\b(?:bet|bets|betting|wager|antes?|pot|gambl|stake|stakes)\b/.test(m)
-      || /\b(?:button|buttons|bead|beads|chip|chips|token|tokens)\b/.test(m)
+      || /\b(?:button|buttons|bead|beads|chip|chips)\b/.test(m)
       || /\b(?:keeper|keep the pot|return all|house rule)\b/.test(m)
       || /\bpretend\s+(?:bet|money|stakes)\b/.test(m)
-    );
+    ) {
+      return true;
+    }
+    // The three Vent lives are rules, not a pretend bet.
+    if (/\btokens?\b/.test(m)) {
+      return /\b(?:ante|bet|pretend|keeper|pot|bead|button|bowl|house\s+rule)\b/.test(m);
+    }
+    return false;
   },
 
   bettingBlockedReply() {

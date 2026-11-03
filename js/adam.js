@@ -64,6 +64,7 @@ const adam = {
     }
     if (/full\s+rules|all\s+rules|complete\s+rules|^rule\s*book$/.test(m)) return false;
     if (this._isOtherDiceGameQuestion(m)) return false;
+    if (typeof isGameLogicQuestion === 'function' && isGameLogicQuestion(m)) return false;
 
     const gameSignals = /volcano|vent(?:\s+dice)?|lucky\s+charm|countdown|2[\s-]*2[\s-]*2|bead|button|sewing|token|ante|napkin|keeper|pretend\s+bet|roll(?:ing)?|round|scor(?:e|ing)|teach(?:\s+me)?|walkthrough|variant|tribute|gambl|1-800|birthday|craft|pebble|marble|jack|seed|clip|house\s+rule|vent\s+sacrifice|sum\s+dice|d6|2\+2\+2/i;
     if (gameSignals.test(m)) return false;
@@ -406,6 +407,8 @@ const adam = {
     if (this._isRoundsQuestion(m)) return formatRoundsAnswerMarkdown();
     if (this._isFirstRollVentQuestion(m)) return this._firstRollVentGuide();
     if (this._isWinningQuestion(m)) return this._winning();
+    const ruling = this._gameLogic(m);
+    if (ruling) return ruling;
     const basicAnswer = this._matchBasicRule(m);
     if (basicAnswer) return basicAnswer;
     if (this._isCraftTokenQuestion(m)) return this._craftTokensConcise(m);
@@ -1746,6 +1749,8 @@ const adam = {
     if (this._isNoDiceLeftQuestion(m)) return this._noDiceLeftGuide(m);
     if (this._isRollingSixQuestion(m)) return this._rollingSixGuide(m);
 
+    const ruling = this._gameLogic(message);
+    if (ruling) return ruling;
     if (this._isLikelyOffTopic(m) && !this._isOtherDiceGameQuestion(m) && !this._isBettingAside(m)) {
       return this._offTopicPersonality(message);
     }
@@ -1753,6 +1758,11 @@ const adam = {
       return `Still on **pretend bets** — try **"tell me more"**, **"what about keeper?"**, **"how do antes work?"**, or **"what can be used for bets?"** in plain English.\n\nYou asked: "${message}"`;
     }
     return `I'm a **rough guide** — I may not have every phrasing perfect. Try **"how do I play?"**, **"full rules"**, **"lucky charm"**, or **"the Vent"**. You asked: "${message}"`;
+  },
+
+  _gameLogic(message) {
+    if (typeof adviseGameLogic !== 'function') return null;
+    return adviseGameLogic(message);
   },
 
   _isBettingAside(m) {

@@ -47,7 +47,9 @@ const adamLlm = {
     return (
       `You are ${botName}, a home-table guide for Volcano Vent Dice only. `
       + 'Answer in plain everyday English — like explaining to a friend at the table. '
-      + 'NEVER lecture or dump full rules. Never output the full rule sheet unless the user explicitly asked for full rules. Keep answers SHORT (under 90 words). '
+      + 'When they ask how a roll, a miss, a sum, a rescue, or a token works, give the detailed ruling: the dice counts, what is set aside, the fresh rescue roll, and who goes next. '
+      + 'Use only the game logic below. Do not invent a step. Two short paragraphs is the right size. '
+      + 'Dump the full rule sheet only if they explicitly asked for full rules. '
       + 'If the user says please, continue, or yes during a walkthrough, give ONLY the next short step — do not repeat earlier steps. '
       + 'Use the canonical facts you are given — do not invent rules. '
       + 'NEVER discuss, compare, or recommend other dice or board games (Yahtzee, Craps, Farkle, Liar\'s Dice, etc.) — only Volcano Vent Dice. '
@@ -59,7 +61,8 @@ const adamLlm = {
       + 'End with ONE clear yes/no offer — e.g. "Want a mini example?" or **Try next:** "How does the Vent work?" '
       + 'Tell the user they can reply **yes**, **sure**, or **okay go ahead**. Never end with a vague question if you need **yes** to continue. '
       + 'Privacy: chats are strictly confidential — never shared with other users, like any private GPT session. Do not suggest sharing chat logs with strangers or other players. '
-      + `Core game: ${summary.replace(/\*\*/g, '')}`
+      + `Core game: ${summary.replace(/\*\*/g, '')} `
+      + `Game logic: ${typeof formatGameLogicFacts === 'function' ? formatGameLogicFacts() : ''}`
     );
   },
 
@@ -80,10 +83,11 @@ const adamLlm = {
       + 'Never suggest real money, poker chips, casino play, sports betting, or any betting outside those craft pretend tokens. '
       + 'If the topic is unrelated to the game, answer it directly, then add one short line inviting them back to the table '
       + '(e.g. "When you are back at the table, ask me about the Vent or lucky charm."). '
-      + 'If they mixed game and non-game topics, cover both briefly. '
+      + 'If they mixed game and non-game topics, cover both. Give any Volcano Vent ruling in detail from the game logic, then one short line back to the table. '
       + 'Privacy: chats are strictly confidential — never shared with other users, like any private GPT session. '
       + 'Never invent Volcano Vent Dice rules — for game facts stick to: '
-      + `${summary.replace(/\*\*/g, '')}`
+      + `${summary.replace(/\*\*/g, '')} `
+      + `Game logic: ${typeof formatGameLogicFacts === 'function' ? formatGameLogicFacts() : ''}`
     );
   },
 
@@ -131,9 +135,12 @@ const adamLlm = {
       { role: 'user', content: String(userMessage || '') }
     ];
     if (ruleBasedReply && !/^I'm a \*\*rough guide\*\*/.test(ruleBasedReply)) {
+      const detailed = /Here is the ruling/i.test(ruleBasedReply);
       messages.push({
         role: 'system',
-        content: `Rewrite this rule-guide answer in plain English (stay accurate, stay short): ${ruleBasedReply.replace(/\*\*/g, '').slice(0, 700)}`
+        content: detailed
+          ? `This draft is the table ruling. Keep every step, number, and who rolls next. You may warm the voice. Do not shrink it into a teaser: ${ruleBasedReply.replace(/\*\*/g, '').slice(0, 1200)}`
+          : `Rewrite this rule-guide answer in plain English (stay accurate, keep the ruling steps): ${ruleBasedReply.replace(/\*\*/g, '').slice(0, 700)}`
       });
     }
 

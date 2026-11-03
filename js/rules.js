@@ -955,6 +955,124 @@ function formatHowWeDecideMarkdown() {
   return out;
 }
 
+/**
+ * Situational rulings — the mechanical logic Adam uses when a question
+ * does not match a single starter. Same facts on every host.
+ */
+const VOLCANO_VENT_LOGIC = {
+  facts:
+    'Six dice are shared. The countdown is 6, then 5, then 4, then 3, then 2, then 1. '
+    + 'A tribute is one die showing the target, or any dice that sum to it. Set only those aside and pass the rest. '
+    + '2+2+2 pays 6 and leaves three dice, so the next target is 5. '
+    + 'Zero dice left is a miss. '
+    + 'A miss puts that player on the Vent. They roll the same number of dice again, a fresh roll. '
+    + 'The lucky charm saves them only if it appears on that rescue roll. A charm on the miss roll does not save them unless it already paid the tribute. '
+    + 'No charm on the rescue means lose one of the three tokens. '
+    + 'After a save, a sacrifice, or making 1, all six dice return and the next player starts at 6. '
+    + 'The player who just resolved the Vent does not roll again. Last player with tokens wins. '
+    + 'Kids use paper lives instead of tokens. Pretend bets are separate craft tokens, 18 and older, and House Rule 1 returns them.',
+  rulings: [
+    {
+      id: 'open',
+      test: m => /first roll|opening roll|start(?:ing)? (?:at|on) 6|tribute 6|all 6 dice/.test(m),
+      title: 'Opening tribute',
+      body:
+        'The first player rolls **all 6 dice** for tribute **6**. One die showing **6** pays it. So does any sum: **4+2**, **3+3**, **1+2+3**, or **2+2+2**. Set **only** the dice that paid aside. The next player uses what is left, and their target is **5**, not 6.\n\n'
+        + 'Miss that opening roll and you are on the **Vent** immediately. Take the rescue below. You do not get a free pass because it was the first roll.'
+    },
+    {
+      id: 'sums',
+      test: m => /sum|add(?:ing)? up|set aside|aside|2\s*\+\s*2|how many dice|combination|combo|pay|paid|\d+\s+dice/.test(m),
+      title: 'What counts as paying',
+      body:
+        'Use as many dice as you need. One die that shows the target is enough. Two or more that **add up** to the target also pay. **2+2+2** is a legal **6** and it spends **three** dice, so **three** pass on and the next target is **5**.\n\n'
+        + 'Set aside only the dice you used. Do not set aside extras. The next player rolls whatever is still in the pool, at the next number down.'
+    },
+    {
+      id: 'empty',
+      test: m => /no dice|zero dice|none left|dice left|all (?:the )?dice (?:were|are) (?:used|set|aside)|nothing to roll/.test(m),
+      title: 'No dice left',
+      body:
+        'If the pool is **empty**, the next player cannot hit the next number. That is a **miss**, not a skipped turn. They go to the **Vent** with **0 dice**. A zero-dice rescue cannot show a lucky charm, so they lose **1 token**.\n\n'
+        + 'Then all **6 dice** come back and the **following** player starts at **6**.'
+    },
+    {
+      id: 'miss',
+      test: m => /miss|missed|fail|cannot hit|can(?:'|’)t hit|cannot pay|can(?:'|’)t pay|nobody can pay|did(?:n| not)(?:'|’)?t (?:get|roll|hit)|no single|short of/.test(m),
+      title: 'A miss, then the Vent',
+      body:
+        'If no single die shows the target and no combination sums to it, the tribute failed. You are on the **Vent**. Do not re-read the miss for your lucky charm. That roll is finished.\n\n'
+        + 'Count the dice you just failed with. Roll **that same number** again. This **rescue roll** is a fresh roll. If **your** lucky charm (the **1–6** written on paper) shows on any of those dice, you are safe and you lose nothing. If it does not, you lose **1** of your **3 tokens**.\n\n'
+        + 'Either way, all **6 dice** return to the middle and the **next player** starts at **6**. You do not roll again. A charm that was only on the miss does not save you, unless those same dice had already paid the tribute.'
+    },
+    {
+      id: 'charm',
+      test: m => /lucky\s*charm|charm/.test(m),
+      title: 'Where the lucky charm works',
+      body:
+        'Everyone picks **1 through 6** once, before the first roll, and writes it on paper. Duplicates are fine. The charm does nothing on a normal tribute.\n\n'
+        + 'It answers only on the **rescue roll** after a miss: same number of dice, rolled again. See your number on that fresh roll and you are **safe**, token still in hand. Then the **next player** takes all **6 dice** at tribute **6**.'
+    },
+    {
+      id: 'next',
+      test: m => /next player|who (?:goes|rolls)|whose turn|pass(?:es|ed)?|remaining|still hit|make (?:a )?5|hit five|target is 5|roll again|(?:am |are |was )?saved/.test(m),
+      title: 'Who rolls next',
+      body:
+        'After a successful tribute, the **same countdown continues**. The next player rolls only the dice you did not set aside, and the target is one number lower.\n\n'
+        + 'After a **Vent** (saved or not) or after someone makes **1**, the chain is over. All **6 dice** come back. The **next** player in order starts a new chain at **6**. The player who just paid, missed, or got rescued does not take that opening roll.'
+    },
+    {
+      id: 'tokens',
+      test: m => /token|out of the game|who wins|three tokens|lose (?:a|one)|paper lives?/.test(m),
+      title: 'Tokens and the win',
+      body:
+        'Each player starts with **3 tokens** from the shared bowl. You lose one only when the **rescue roll** does not show your lucky charm. Making tributes does not cost a token. A successful rescue does not cost one either.\n\n'
+        + 'At **0 tokens** you are out. The **last player who still has a token** wins. Kids can mark **paper lives** the same way and do not use pretend bets.'
+    },
+    {
+      id: 'after1',
+      test: m => /after (?:a |the )?1\b|tribute 1|made (?:a |the )?1|reach(?:ed)? 1|bottom/.test(m),
+      title: 'After someone makes 1',
+      body:
+        'Making **1** finishes that descent. Nobody is on the Vent for a success. All **6 dice** return to the middle, the target resets to **6**, and the **next player** opens the new chain. The player who rolled the **1** does not roll the new **6**.'
+    }
+  ],
+  chain: {
+    title: 'The chain, in order',
+    body:
+      'Roll the dice still in the pool for the current target, starting at **6** with all **6 dice**. Pay with one matching face or a sum, set those dice aside, and pass the rest to the next player at the next lower number.\n\n'
+      + 'Miss, and you stand on the **Vent**: roll that same count again. Your **lucky charm** on the fresh roll saves your token; otherwise you lose **1**. Then all **6 dice** return and the next player starts at **6**. Same reset after tribute **1**. Last player with tokens wins.'
+  }
+};
+
+function isGameLogicQuestion(message) {
+  const m = String(message || '').toLowerCase();
+  if (!m || m.length < 8) return false;
+  if (/\b(?:yahtzee|yatzy|craps|farkle|liar'?s?\s+dice|bunco|bunko|tenzi)\b/.test(m)) return false;
+  if (/\b(?:ante|antes|keeper|house\s+rule|napkin|pretend\s+bet|poker\s+chip)\b/.test(m)) return false;
+  if (/\b(?:pizza|weather|boss|girlfriend|boyfriend|netflix)\b/.test(m) && !/\b(?:dice|vent|roll|token|charm)\b/.test(m)) return false;
+  const asking = /\b(?:what if|what happens (?:if|when)|if i|if we|if you|can i|can we|do i|do we|should i|am i|are we|is it|suppose|count as|allowed to|have to|supposed to)\b/.test(m);
+  const piece = /\b(?:miss(?:ed)?|rescue|tribute|countdown|dice|die|roll(?:ed)?|token|charm|vent|sum|add|aside|pass|restart|target|six|pay|paid|empty|pool|turn|player)\b/.test(m) || /\b6\b/.test(m);
+  return asking && piece;
+}
+
+function adviseGameLogic(message) {
+  if (!isGameLogicQuestion(message)) return null;
+  const m = String(message || '').toLowerCase();
+  const hits = VOLCANO_VENT_LOGIC.rulings.filter(rule => rule.test(m)).slice(0, 2);
+  const chosen = hits.length ? hits : [VOLCANO_VENT_LOGIC.chain];
+  let out = '**Here is the ruling.**\n\n';
+  chosen.forEach(rule => {
+    out += `**${rule.title}**\n\n${rule.body}\n\n`;
+  });
+  out += 'That is the table logic. Say **"full rules"** if you want every variant written out.';
+  return out.trim();
+}
+
+function formatGameLogicFacts() {
+  return VOLCANO_VENT_LOGIC.facts;
+}
+
 function matchBasicRuleQuestion(m) {
   const t = String(m || '').toLowerCase();
   for (const item of VOLCANO_VENT_BASIC_QA) {
@@ -1249,6 +1367,10 @@ if (typeof globalThis !== 'undefined') {
   globalThis.formatBettingRulesMarkdown = formatBettingRulesMarkdown;
   globalThis.formatPretendBetsFitMarkdown = formatPretendBetsFitMarkdown;
   globalThis.formatBettingSupportFooter = formatBettingSupportFooter;
+  globalThis.VOLCANO_VENT_LOGIC = VOLCANO_VENT_LOGIC;
+  globalThis.isGameLogicQuestion = isGameLogicQuestion;
+  globalThis.adviseGameLogic = adviseGameLogic;
+  globalThis.formatGameLogicFacts = formatGameLogicFacts;
   globalThis.matchBasicRuleQuestion = matchBasicRuleQuestion;
   globalThis.matchButtonsBeadsQuestion = matchButtonsBeadsQuestion;
   globalThis.formatKeeperGuidanceMarkdown = formatKeeperGuidanceMarkdown;
