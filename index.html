@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=75">
+  <link rel="stylesheet" href="css/styles.css?v=76">
 </head>
 <body>
   <div class="app-shell">
@@ -89,9 +89,8 @@
           <button class="quick-chip" type="button" data-prompt="How do beads work?">Beads</button>
         </div>
         <p class="voice-status hidden" id="voice-status" role="status"></p>
-        <button id="voice-interrupt" type="button" class="hidden">Interrupt</button>
         <div class="chat-input-row">
-          <button id="voice-mic" type="button" title="Talk with AI" aria-label="Talk with AI" aria-pressed="false">
+          <button id="voice-mic" type="button" title="Call Adam" aria-label="Call Adam" aria-pressed="false">
             <span class="voice-mic-icon" aria-hidden="true">🎤</span>
           </button>
           <input type="text" id="chat-input" placeholder="Ask about the Vent, countdown, or lucky charm…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Your message">
@@ -228,7 +227,7 @@
           </label>
           <label class="check-row">
             <input type="checkbox" id="voice-loop" checked>
-            After AI speaks, listen for your next line
+            Keep the call going after Adam talks
           </label>
           <p class="settings-note">Tap the mic to talk. AI answers out loud, then listens again until you tap the mic to stop.</p>
           <div id="ai-lang-picks" class="ai-lang-picks" aria-label="AI languages"></div>
@@ -271,7 +270,7 @@
   <script src="js/chat-scroll.js?v=65"></script>
   <script src="js/conversations.js?v=65"></script>
   <script src="js/age-verify.js?v=65"></script>
-  <script src="js/voice.js?v=76"></script>
+  <script src="js/voice.js?v=77"></script>
   <script src="js/llm.js?v=69"></script>
   <script src="js/adam.js?v=69"></script>
   <script src="js/share.js?v=65"></script>

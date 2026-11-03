@@ -43,7 +43,7 @@ const adamVoice = {
   _barge: false,
   _listenHint: '',
   _fillingInput: false,
-  _endPause: 1800, // quiet time before a turn is sent; a breath must not end it
+  _endPause: 5000, // quiet time before Adam answers; a breath must not end the turn
   _silenceTimer: null,
   _kept: '',
   _finals: [],
@@ -109,27 +109,7 @@ const adamVoice = {
       if (this.autoRead) this.speak(this._lastText);
       else this.stop();
     });
-    this.micBtn?.addEventListener('pointerdown', (event) => this._cutFromGesture(event));
-    this.micBtn?.addEventListener('click', (event) => {
-      if (this._suppressClick) {
-        this._suppressClick = false;
-        event.preventDefault();
-        return;
-      }
-      this.toggleTalk();
-    });
-    const interruptBtn = document.getElementById('voice-interrupt');
-    if (interruptBtn && typeof interruptBtn.addEventListener === 'function') {
-      interruptBtn.addEventListener('pointerdown', (event) => this._cutFromGesture(event));
-      interruptBtn.addEventListener('click', (event) => {
-        if (this._suppressClick) {
-          this._suppressClick = false;
-          event.preventDefault();
-          return;
-        }
-        this.interrupt();
-      });
-    }
+    this.micBtn?.addEventListener('click', () => this.toggleTalk());
     if (typeof document.addEventListener === 'function') {
       document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
@@ -405,18 +385,15 @@ const adamVoice = {
       btn.classList.toggle('listening', this._phase === 'listening');
       btn.classList.toggle('speaking', this._phase === 'speaking' || this._phase === 'thinking');
       btn.setAttribute('aria-pressed', live ? 'true' : 'false');
-      const correcting = this._phase === 'speaking' || this._phase === 'thinking';
-      const label = correcting ? 'Interrupt Adam' : (live ? 'Stop AI' : 'Talk with AI');
+      const label = live ? 'Hang up' : 'Call Adam';
       btn.title = label;
       btn.setAttribute('aria-label', label);
-      const interruptBtn = document.getElementById('voice-interrupt');
-      if (interruptBtn) interruptBtn.classList.toggle('hidden', !correcting);
       const icon = btn.querySelector('.voice-mic-icon');
-      if (icon) icon.textContent = correcting ? 'Stop' : (live ? '⏹' : '🎤');
+      if (icon) icon.textContent = live ? 'End' : '🎤';
     }
-    if (this._phase === 'listening') this._setStatus(this._listenHint || 'Listening… a short pause is fine.');
-    else if (this._phase === 'thinking') this._setStatus('Got it. AI is answering… tap the mic to stop him.');
-    else if (this._phase === 'speaking') this._setStatus('Adam is speaking. Tap Interrupt and he stops.');
+    if (this._phase === 'listening') this._setStatus(this._listenHint || 'On a call. I’m listening.');
+    else if (this._phase === 'thinking') this._setStatus('One moment.');
+    else if (this._phase === 'speaking') this._setStatus('Adam is talking. Speak to jump in.');
     else if (!this._statusLocked) this._setStatus('');
   },
 
@@ -492,6 +469,11 @@ const adamVoice = {
     return best;
   },
 
+  _asVent(word) {
+    const next = /s$/i.test(word) ? 'vents' : 'vent';
+    return word[0] === word[0].toUpperCase() ? next[0].toUpperCase() + next.slice(1) : next;
+  },
+
   _correctHeard(text) {
     const raw = String(text || '');
     const gameAsk = /^(?:tell me|what|whats|what's|how|explain|describe|talk|about)\b/i.test(raw.trim());
@@ -499,16 +481,26 @@ const adamVoice = {
     const moonKeep = /\b(?:full|blue|new|half|harvest|super|to\s+the)\s+$/i;
     const eventKeep = /\b(?:sports|main|track|next|charity|family|social)\s+$/i;
     const cue = /^(?:the|a|an|about|on|onto|volcano|hit|miss|missed)$/i;
-    return raw.replace(/\b(rents?|bents?|moons?|events?)\b/gi, (word, _g, offset, whole) => {
-      const before = whole.slice(Math.max(0, offset - 40), offset);
-      if (/rent/i.test(word) && housing.test(before)) return word;
-      if (/moon/i.test(word) && moonKeep.test(before)) return word;
-      if (/event/i.test(word) && eventKeep.test(before)) return word;
+    return raw.replace(/\b(rents?|bents?|wents?|moons?|events?)\b/gi, (word, _g, offset, whole) => {
+      const before = whole.slice(Math.max(0, offset - 48), offset);
       const prev = (before.match(/([A-Za-z]+)\s+$/) || [])[1] || '';
-      if (!cue.test(prev)) return word;
-      if (!gameAsk && whole.trim().split(/\s+/).length > 3) return word;
-      const next = /s$/i.test(word) ? 'vents' : 'vent';
-      return word[0] === word[0].toUpperCase() ? next[0].toUpperCase() + next.slice(1) : next;
+      if (/rent/i.test(word) && housing.test(before)) return word;
+      if (/moon/i.test(word)) {
+        if (moonKeep.test(before)) return word;
+        if (!cue.test(prev)) return word;
+        if (!gameAsk && whole.trim().split(/\s+/).length > 3) return word;
+        return this._asVent(word);
+      }
+      if (/went/i.test(word)) {
+        if (!cue.test(prev)) return word;
+        return this._asVent(word);
+      }
+      if (/event/i.test(word)) {
+        if (eventKeep.test(before)) return word;
+        if (!cue.test(prev)) return word;
+        return this._asVent(word);
+      }
+      return this._asVent(word);
     });
   },
 
@@ -588,10 +580,16 @@ const adamVoice = {
     this._silenceTimer = null;
   },
 
+  _pauseFor(line) {
+    const base = typeof this._endPause === 'number' ? this._endPause : 5000;
+    if (base < 500) return base;
+    const dangling = /\b(?:and|or|but|so|because|the|a|an|to|of|for|about|with|on|in|at|like|if|when|what|how|is|was|uh|um)\s*$/i.test(String(line || ''));
+    return dangling ? base + 2500 : base;
+  },
+
   _scheduleTurnEnd() {
     clearTimeout(this._silenceTimer);
-    const wait = typeof this._endPause === 'number' ? this._endPause : 1800;
-    this._silenceTimer = setTimeout(() => this._finishTurn(), wait);
+    this._silenceTimer = setTimeout(() => this._finishTurn(), this._pauseFor(this._liveLine()));
   },
 
   _finishTurn() {
@@ -639,7 +637,7 @@ const adamVoice = {
       this._session = true;
       this._sentThisListen = false;
       this._phase = 'listening';
-      this._listenHint = 'Listening… keep going.';
+      this._listenHint = 'Go ahead.';
       this._absorb(event);
       this._showLive();
       this._scheduleTurnEnd();
@@ -724,19 +722,8 @@ const adamVoice = {
   },
 
   toggleTalk() {
-    if (this._phase === 'speaking' || this._phase === 'thinking') {
-      this.interrupt();
-      return;
-    }
     if (this._session || this._phase !== 'idle') this.stopTalk();
     else this.startTalk();
-  },
-
-  _cutFromGesture(event) {
-    if (this._phase !== 'speaking' && this._phase !== 'thinking') return;
-    if (event && event.cancelable) event.preventDefault();
-    this._suppressClick = true;
-    this.interrupt();
   },
 
   _chunks(text) {

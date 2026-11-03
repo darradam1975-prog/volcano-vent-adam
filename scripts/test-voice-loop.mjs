@@ -220,6 +220,18 @@ adamVoice.stopTalk();
 
 adamVoice.loop = true;
 adamVoice.startTalk();
+const sentBeforeLong = sent.length;
+adamVoice._recognition.onresult({
+  resultIndex: 0,
+  results: [{ 0: { transcript: 'the rent is the rim of the volcano' }, isFinal: true, length: 1 }]
+});
+check('a long line is not cut off on the first result', sent.length === sentBeforeLong);
+await waitTurn();
+check('a long rent line is sent as vent', sent.at(-1) === 'the vent is the rim of the volcano');
+adamVoice.stopTalk();
+
+adamVoice.loop = true;
+adamVoice.startTalk();
 adamVoice._recognition.onresult({
   resultIndex: 0,
   results: [{
@@ -236,6 +248,17 @@ adamVoice.stopTalk();
 check('meant is not rewritten', adamVoice._correctHeard('tell me what you meant') === 'tell me what you meant');
 check('a bright moon stays a moon', adamVoice._correctHeard('the moon is bright tonight') === 'the moon is bright tonight');
 check('to the moon stays', adamVoice._correctHeard('to the moon') === 'to the moon');
+check('the rent in a sentence is the vent', adamVoice._correctHeard('the rent is the rim of the volcano') === 'the vent is the rim of the volcano');
+check('rent alone is the vent', adamVoice._correctHeard('rent') === 'vent');
+check('the went is the vent', adamVoice._correctHeard('hit the went') === 'hit the vent');
+check('I went home stays', adamVoice._correctHeard('I went home') === 'I went home');
+check('the event in a sentence is the vent', adamVoice._correctHeard('stand on the event') === 'stand on the vent');
+check('next event stays', adamVoice._correctHeard('the next event') === 'the next event');
+const savedPause = adamVoice._endPause;
+adamVoice._endPause = 5000;
+check('a finished line waits', adamVoice._pauseFor('what is the vent') === 5000);
+check('an unfinished line waits longer', adamVoice._pauseFor('tell me about the') === 7500);
+adamVoice._endPause = savedPause;
 
 adamVoice._speakingText = 'The Vent is the rim. Ask me about the countdown.';
 adamVoice._phase = 'speaking';
@@ -272,8 +295,7 @@ check('a correction interrupts Adam', sent.at(-1) === 'no I meant the beads' && 
 adamVoice._phase = 'speaking';
 adamVoice._session = true;
 adamVoice.toggleTalk();
-check('mic tap while Adam speaks listens for a correction', adamVoice._session === true && adamVoice._phase === 'listening');
-adamVoice.stopTalk();
+check('mic tap hangs up the call', adamVoice._session === false && adamVoice._phase === 'idle');
 
 const spokenBeforeCut = spoken.length;
 adamVoice.autoRead = true;

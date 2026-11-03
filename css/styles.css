@@ -718,29 +718,6 @@ body.modal-open {
   display: none;
 }
 
-#voice-interrupt {
-  display: block;
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  width: calc(100% - 24px);
-  margin: 8px 12px 0;
-  border: none;
-  border-radius: 12px;
-  padding: 14px 14px;
-  background: linear-gradient(135deg, var(--lava-bright), var(--lava));
-  color: #fff;
-  font-family: inherit;
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-}
-
-#voice-interrupt.hidden {
-  display: none;
-}
-
 .chat-input-row {
   display: flex;
   gap: 8px;
