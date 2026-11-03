@@ -454,5 +454,69 @@ adam.respond('house rules for pretend bets');
 const betLaugh = adam.respond('lol');
 check('lol on pretend bets stays there', /pretend bets/i.test(betLaugh) && /tell me more|keeper/i.test(betLaugh) && !/Here is the ruling|rough guide/i.test(betLaugh));
 
+check('greeting will debate and remember', /pro-America/i.test(adam.greet()) && /what did we talk about/i.test(adam.greet()));
+check('prompts are pro-america', /pro-America/.test(adamLlm.buildSystemPrompt()) && /pro-America/.test(adamLlm.buildOffTopicSystemPrompt()));
+check('prompts debate both wings', /left-wing/.test(adamLlm.buildOffTopicSystemPrompt()) && /right-wing/.test(adamLlm.buildOffTopicSystemPrompt()));
+check('vent joke catalog grew', VOLCANO_VENT_TABLE_JOKES.vent.length >= 12 && VOLCANO_VENT_TABLE_JOKES.general.length >= 12);
+check('america joke catalog exists', VOLCANO_VENT_TABLE_JOKES.america.length >= 6);
+const sameJoke = pickVolcanoVentTableJoke('vent', 'seed-one');
+check('another table joke skips the last one', sameJoke !== pickVolcanoVentTableJoke('vent', 'seed-one', sameJoke));
+check('table joke about america', /table joke/i.test(adam.respond('table joke about america')) && /America|flag|dice/i.test(adam.respond('table joke about america')));
+
+adam.conversationHistory = [];
+adam.topicMemory = [];
+adam.lastTopic = 'general';
+adam.lastPoliticsIssue = '';
+adam.teachMode = false;
+adam.walkthroughStep = 0;
+const border = adam.respond('let us debate immigration');
+check('border debate is pro-america', /pro-America/i.test(border) && /left wing/i.test(border) && /right wing/i.test(border) && !/pundit|rough guide|Here is the ruling/i.test(border));
+const borderMore = adam.respond('tell me more');
+check('politics follow-up stays on the debate', /pro-America|border|immigra/i.test(borderMore) && !/After the Vent|Here is the ruling/i.test(borderMore));
+const taxRight = adam.respond('what is the right wing case on taxes');
+check('right wing taxes get a case', /tax/i.test(taxRight) && /right wing/i.test(taxRight) && /pro-America/i.test(taxRight));
+const speechLeft = adam.respond('make the left wing case on free speech');
+check('left wing speech gets a case', /speech|First Amendment/i.test(speechLeft) && /left wing/i.test(speechLeft));
+const pres = adam.respond('what do you think about the president and the election');
+check('president is a debate not a brush-off', /pro-America/i.test(pres) && !/do not do pundit/i.test(pres));
+const stillVent = adam.respond('what happens on the vent?');
+check('a vent question is not a political debate', /rescue|Vent/i.test(stillVent) && !/pro-America/i.test(stillVent));
+check('headlines are not a rule sheet', !/Here is the ruling|pro-America/i.test(adam.respond('what is in the news')));
+
+adam.conversationHistory = [];
+adam.topicMemory = [];
+adam.lastTopic = 'general';
+adam.lastPoliticsIssue = '';
+adam.respond('what happens on the vent?');
+const remembered = adam.respond('what did we talk about?');
+check('memory lists the vent', /vent/i.test(remembered) && /this chat/i.test(remembered));
+const missedTopic = adam.respond('what did we talk about taxes');
+check('memory misses a topic we did not discuss', /nothing earlier|do not have|not in this chat/i.test(missedTopic));
+
+globalThis.adamConversations = {
+  active: {
+    id: 'open',
+    messages: [
+      { role: 'user', text: 'what happens on the vent?' },
+      { role: 'assistant', text: 'The rim opens when you miss.' }
+    ],
+    memory: []
+  },
+  getActive() { return this.active; }
+};
+adam.conversationHistory = [
+  { role: 'user', content: 'let us debate taxes' },
+  { role: 'assistant', content: 'Taxes are a whole other chat.' }
+];
+const selected = adam.respond('what did we talk about?');
+check('memory stays on the selected chat', /vent/i.test(selected) && !/tax/i.test(selected));
+adamConversations.active = {
+  id: 'other',
+  messages: [{ role: 'user', text: 'let us debate taxes' }],
+  memory: []
+};
+const otherChat = adam.respond('what did we talk about?');
+check('a different selected chat has its own memory', /tax/i.test(otherChat) && !/vent/i.test(otherChat));
+
 console.log('\nPassed', ok, '/', total);
 process.exit(ok === total ? 0 : 1);

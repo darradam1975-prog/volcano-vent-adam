@@ -178,7 +178,13 @@ const VOLCANO_VENT_TABLE_JOKES = {
     'writes charm on paper: group memory, not superstition.',
     'duplicate charms? the volcano has room for favorites.',
     'charm didn\'t show — the table does the sympathetic groan.',
-    'lucky charm on rescue: grab the rim and pretend you planned it.'
+    'lucky charm on rescue: grab the rim and pretend you planned it.',
+    'the charm is a phone number you hope you never have to dial.',
+    'picked the same number as your cousin. the mountain calls that family.',
+    'paper charm, pencil courage.',
+    'your charm is not a strategy. it is a rabbit\'s foot with homework.',
+    'someone always forgets their charm until the table goes quiet.',
+    'a charm on a napkin still counts. the volcano is not a stationery snob.'
   ],
   vent: [
     'you\'re on the Vent — don\'t look down, look at the dice.',
@@ -186,70 +192,153 @@ const VOLCANO_VENT_TABLE_JOKES = {
     'the table goes quiet — that\'s how you know it\'s the Vent.',
     'Vent day: even the snack bowl stops crunching.',
     'miss the tribute? welcome to the rim — population: nervous.',
-    'the Vent isn\'t lava yet; it\'s the "uh-oh" shelf.'
+    'the Vent isn\'t lava yet; it\'s the "uh-oh" shelf.',
+    'the Vent is where confident math goes to think about its choices.',
+    'everybody has a plan until the rim clears its throat.',
+    'you can hear a bead drop. that is not a good sign.',
+    'the Vent does not take excuses. it takes dice.',
+    'smile if you want. the rim can see you anyway.',
+    'a miss is not a personality. it is just this roll.',
+    'welcome to the rim. shoes optional, nerve required.',
+    'the Vent keeps minutes. the table keeps snacks.'
   ],
   rescue: [
     'rescue roll — one handshake with gravity.',
     'fresh roll, same dice — no take-backs.',
     'whole table leans in; physics leans back.',
     'one rescue roll — maximum hope, minimum dice.',
-    'saved on rescue? the volcano pretends it meant to let you go.'
+    'saved on rescue? the volcano pretends it meant to let you go.',
+    'same dice, new prayer. the mountain has heard worse.',
+    'a rescue is a second chance with an audience.',
+    'nobody breathes on a rescue. the snack bowl notices.',
+    'fresh roll. old nerves. fair dice.',
+    'saved. now pretend you meant to do that.',
+    'the rescue does not care how good the story was.'
   ],
   countdown: [
     'six down to one — we\'re crawling the cone.',
     'countdown at four — the volcano clears its throat.',
     'after one, back to six — the elevator\'s out of order.',
     'target\'s shrinking faster than the dice pool — classic Volcano Vent.',
-    'paid tribute five? the mountain nods and waits for four.'
+    'paid tribute five? the mountain nods and waits for four.',
+    'six is a parade. one is a tightrope.',
+    'the countdown is a staircase somebody keeps shortening.',
+    'from six to one, the table gets funnier or meaner. sometimes both.',
+    'every number down is a smaller room with the same friends.',
+    'hit five and act humble. four is watching.',
+    'the cone does not skip stairs, and neither do you.',
+    'back at six. new chain. same groans, warmed over.'
   ],
   sums: [
     '2+2+2 — the mountain accepts installment plans.',
     'math is allowed; the volcano doesn\'t grade your work twice.',
     'three twos walk into a tribute bar — only three leave.',
     '4+2 works; so does 1+2+3 — the cone is not picky.',
-    'clever sums: the quiet flex of the home table.'
+    'clever sums: the quiet flex of the home table.',
+    'addition is legal. gloating is traditional.',
+    'two dice can be a team. three dice can be a scheme.',
+    'the quiet player is adding. be afraid.',
+    'a lone six is swagger. 2+2+2 is craft.',
+    'show your sum like you invented arithmetic.',
+    'the volcano failed math on purpose, so you would have a job.'
   ],
   tokens: [
     'token clink into the bowl — RIP, little friend.',
     'three tokens — three chances before the mountain shrugs.',
     'lost a token? the table says "oof" in unison.',
     'sacrifice a bead — the volcano accepts craft-shop currency.',
-    'two tokens left — everyone suddenly your friend.'
+    'two tokens left — everyone suddenly your friend.',
+    'one token left and suddenly you love every rule.',
+    'a token is a small life with a loud landing.',
+    'count them in the open. friendship hates surprise math.',
+    'the bowl keeps what the rim collects.',
+    'three chances. spend them like they have your name on them.',
+    'nobody is out until the last little marker says so.'
   ],
   winning: [
     'last tokens standing — monarch of the lukewarm lava.',
     'winner doesn\'t conquer the volcano; they outlast the groans.',
     'one player left — the mountain files the paperwork.',
-    'you win when everyone else ran out of offerings.'
+    'you win when everyone else ran out of offerings.',
+    'victory is just staying in the room.',
+    'the champ still has to help clear the snack bowl.',
+    'last one in is not the smartest. just the last.',
+    'win quietly. the rim remembers bragging.',
+    'nobody beat the volcano. somebody just lasted.',
+    'take the win. leave the dice in the middle.'
   ],
   players: [
     'six players, six dice — sharing is caring and chaotic.',
     'two-player Vent duel — every miss is personal.',
     'big table, small pool — patience is part of the game.',
-    'sweet spot three to six — enough groans to feel like a crowd.'
+    'sweet spot three to six — enough groans to feel like a crowd.',
+    'the slow player is doing diplomacy, not math.',
+    'a full table is a choir that only knows one note: oof.',
+    'two people is a duel. five people is a legislature.',
+    'pass the dice like you like these people. you invited them.',
+    'new player gets the rules once, kindly, then the rim.',
+    'somebody always narrates. let them. it feeds the table.'
   ],
   dice: [
     'six dice, one volcano — crowd control issues.',
     'dice pool shrinking — the tension\'s doing push-ups.',
     'all six back in the middle — the cone resets, egos don\'t.',
-    'one die left for tribute four — pray or do math.'
+    'one die left for tribute four — pray or do math.',
+    'dice are honest. the table is not always.',
+    'shake them like you mean it. the mountain is not impressed, but we are.',
+    'a single die left is a very small stage.',
+    'six dice in a fist is a promise you might not keep.',
+    'they click because they have opinions.',
+    'put them back in the middle. the next person deserves a full hand.',
+    'dirty dice are a house problem. call it before the roll, not after.'
   ],
   firstRoll: [
     'first-roll Vent — welcome to the mountain, here\'s the rim.',
     'opened with a miss — bold strategy, volcanic results.',
     'tribute six on roll one — no warm-up, straight to drama.',
-    'first roll rescue with all six dice — maximum spectacle.'
+    'first roll rescue with all six dice — maximum spectacle.',
+    'no practice swing. the cone starts when you do.',
+    'opening miss: the table pretends not to enjoy it.',
+    'first roll, full handful, zero mercy.',
+    'you wanted a gentle start. the mountain did not read that memo.',
+    'all six on the first ask. that is a parade or a problem.'
   ],
   reset: [
     'countdown resets to six — new chain, same nervous table.',
     'all six dice back — the volcano hits the rewind button.',
-    'fresh chain at six — time to feed the cone again.'
+    'fresh chain at six — time to feed the cone again.',
+    'reset is not forgiveness. it is intermission.',
+    'dice home, target six, grudges optional.',
+    'new chain. the rim pretends the last one did not happen.',
+    'back to six, back to hope, back to bad arithmetic.',
+    'the reset is the mountain saying "again," which is its love language.'
   ],
   betting: [
     'one bead per reset — high finance, craft-shop prices.',
     'House Rule 1: everyone gets their beans back — democracy of beans.',
     'napkin vote unanimous? rare as a perfect opening roll.',
-    'keeper pot night — winner takes the mismatched buttons, glory optional.'
+    'keeper pot night — winner takes the mismatched buttons, glory optional.',
+    'pretend money, real friendships. do not mix the two.',
+    'a button is a fortune if the table agrees it is.',
+    'the bowl is a bank with no lobby and no hours.',
+    'antes are optional. groaning is not.',
+    'craft beads only. the volcano does not take gold, and neither should you.',
+    'if the bowl starts to feel serious, eat something and read House Rule 1.',
+    'buttons go home with their people. that is the civilized ending.'
+  ],
+  america: [
+    'the flag does not roll dice, but it stays up while we argue.',
+    'left wing, right wing, same snack bowl.',
+    'you can love the country and still miss the number.',
+    'a good debate ends when somebody has to pass the dice.',
+    'pro-America and pro-fair roll. both can be true at this table.',
+    'disagree hard. flip the bowl and you are done.',
+    'the Constitution does not list a favorite number. the table might.',
+    'America at the table means everybody gets a turn to talk and a turn to roll.',
+    'argue the country. then shake the dice like neighbors.',
+    'patriots can add. a clever sum still pays the same.',
+    'the rim does not check your voter card. it checks the dice.',
+    'love the country out loud. pass the dice without a speech.'
   ],
   general: [
     'the volcano isn\'t angry; it\'s just counting.',
@@ -257,18 +346,28 @@ const VOLCANO_VENT_TABLE_JOKES = {
     'napkin votes count — democracy with crumbs.',
     'Volcano Vent: family game night with extra rim-shot energy.',
     'miss the mark? the mountain shrugs in six-sided dice.',
-    'paper for charms, bowl for beads, drama for free.'
+    'paper for charms, bowl for beads, drama for free.',
+    'the rules fit on a napkin. the arguments do not.',
+    'if the table is laughing, the game is working.',
+    'read the dice, not the room. the room is lying.',
+    'a home table is a small country with better snacks.',
+    'pass the bowl, pass the dice, keep your nerve.',
+    'nobody is the volcano. sit down and play.',
+    'the best rule is the one the whole table can say out loud.',
+    'groan now. explain later. roll when it is yours.'
   ]
 };
 
-function pickVolcanoVentTableJoke(topic, seed = '') {
+function pickVolcanoVentTableJoke(topic, seed = '', avoid = '') {
   const key = topic && VOLCANO_VENT_TABLE_JOKES[topic] ? topic : 'general';
   const list = VOLCANO_VENT_TABLE_JOKES[key];
   if (!list || !list.length) return VOLCANO_VENT_TABLE_JOKES.general[0];
   let h = 0;
   const s = String(seed || key);
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i);
-  return list[Math.abs(h) % list.length];
+  let idx = Math.abs(h) % list.length;
+  if (list.length > 1 && list[idx] === avoid) idx = (idx + 1) % list.length;
+  return list[idx];
 }
 
 function formatTableJokeLine(joke) {

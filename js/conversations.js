@@ -73,6 +73,11 @@ const adamConversations = {
         createdAt: c.createdAt || Date.now(),
         updatedAt: c.updatedAt || Date.now(),
         messages: Array.isArray(c.messages) ? c.messages.slice(-200) : [],
+        memory: (Array.isArray(c.memory) ? c.memory : []).slice(-40).map(n => ({
+          topic: String(n?.topic || '').slice(0, 40),
+          label: String(n?.label || '').slice(0, 60),
+          text: String(n?.text || '').slice(0, 180)
+        })).filter(n => n.text),
         shareId: c.shareId ? String(c.shareId).slice(0, 48) : undefined,
         shareUrl: c.shareUrl ? String(c.shareUrl).slice(0, 300) : undefined,
         sharedAt: c.sharedAt || undefined,
@@ -80,7 +85,9 @@ const adamConversations = {
           teachMode: !!c.adamState?.teachMode,
           lastTopic: c.adamState?.lastTopic || 'general',
           lastBettingSubtopic: c.adamState?.lastBettingSubtopic || 'overview',
-          walkthroughStep: c.adamState?.walkthroughStep || 0
+          walkthroughStep: c.adamState?.walkthroughStep || 0,
+          lastPoliticsIssue: String(c.adamState?.lastPoliticsIssue || '').slice(0, 24),
+          lastTableJoke: String(c.adamState?.lastTableJoke || '').slice(0, 180)
         }
       }));
     return {
@@ -131,11 +138,14 @@ const adamConversations = {
     if (typeof adam === 'undefined') return;
     const conv = this.getActive();
     if (!conv) return;
+    conv.memory = Array.isArray(adam.topicMemory) ? adam.topicMemory.slice(-40) : (conv.memory || []);
     conv.adamState = {
       teachMode: !!adam.teachMode,
       lastTopic: adam.lastTopic || 'general',
       lastBettingSubtopic: adam.lastBettingSubtopic || 'overview',
-      walkthroughStep: adam.walkthroughStep || 0
+      walkthroughStep: adam.walkthroughStep || 0,
+      lastPoliticsIssue: adam.lastPoliticsIssue || '',
+      lastTableJoke: adam.lastTableJoke || ''
     };
   },
 
@@ -146,6 +156,9 @@ const adamConversations = {
     adam.lastTopic = s.lastTopic || 'general';
     adam.lastBettingSubtopic = s.lastBettingSubtopic || 'overview';
     adam.walkthroughStep = s.walkthroughStep || 0;
+    adam.lastPoliticsIssue = s.lastPoliticsIssue || '';
+    adam.lastTableJoke = s.lastTableJoke || '';
+    adam.topicMemory = Array.isArray(conv.memory) ? conv.memory.slice(-40) : [];
     adam.conversationHistory = (conv.messages || [])
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.text }));
@@ -178,7 +191,8 @@ const adamConversations = {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       messages: [],
-      adamState: { teachMode: false, lastTopic: 'general', lastBettingSubtopic: 'overview' }
+      memory: [],
+      adamState: { teachMode: false, lastTopic: 'general', lastBettingSubtopic: 'overview', lastPoliticsIssue: '', lastTableJoke: '' }
     };
     this.data.conversations.unshift(conv);
     if (this.data.conversations.length > ADAM_CONV_MAX) {

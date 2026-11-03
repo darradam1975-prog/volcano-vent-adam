@@ -10,6 +10,9 @@ const adam = {
   lastBettingSubtopic: 'overview',
   teachMode: false,
   walkthroughStep: 0,
+  topicMemory: [],
+  lastPoliticsIssue: '',
+  lastTableJoke: '',
 
   greet() {
     const betNote = adamAgeVerifier.canDiscussBetting()
@@ -22,7 +25,7 @@ const adam = {
     const setupNote = !llmUsable && typeof adamLlmSettings !== 'undefined'
       ? `\n\n${adamLlmSettings.setupGuideShort()}`
       : '';
-    return `Hey — I'm **${ADAM_BOT_NAME}**. I'm a friend at the table, and I want to talk about **Volcano Vent Dice**.${betNote}\n\nSay **"teach me"** for a **brief summary** then **learn by questions** — not a lecture.${llmNote}${setupNote}\n\nAsk one rule, then another. I will follow you: the **Vent**, **2+2+2**, lucky charm, a **six**, house rules. **"Full rules"** only if you want the long version.`;
+    return `Hey — I'm **${ADAM_BOT_NAME}**. I'm a friend at the table, and I want to talk about **Volcano Vent Dice**.${betNote}\n\nI am **pro-America**. Bring a left-wing or right-wing argument and I will debate it with you. This chat has a memory — ask **"what did we talk about?"**\n\nSay **"teach me"** for a **brief summary** then **learn by questions** — not a lecture.${llmNote}${setupNote}\n\nAsk one rule, then another. I will follow you: the **Vent**, **2+2+2**, lucky charm, a **six**, house rules. **"Full rules"** only if you want the long version.`;
   },
 
   respond(message) {
@@ -51,7 +54,10 @@ const adam = {
     if (typeof adamLlm !== 'undefined' && adamLlm.isEnabled()) {
       const roughGuide = /^I'm a \*\*rough guide\*\*/.test(reply);
       const offTopic = this._isLikelyOffTopic(clean);
-      if (/lucky\s*charm/i.test(clean) && !roughGuide) {
+      const keepLocal = this._isMemoryAsk(clean) || /\b(?:do you remember|remind me)\b/i.test(clean) || this._isPolitics(clean);
+      if (keepLocal) {
+        // Memory search and the pro-America debate stay in Adam's own words.
+      } else if (/lucky\s*charm/i.test(clean) && !roughGuide) {
         // Keep topic-specific charm answers — skip GPT rewrite.
       } else if (roughGuide || offTopic) {
         reply = await adamLlm.completeOffTopic(clean, reply, this.conversationHistory);
@@ -119,7 +125,7 @@ const adam = {
     if (!m || m.length < 4) return false;
     if (this._isGreeting(m) || this._isThanks(m) || this._isBareAffirmative(m)
       || this._isDeclineContinuation(m) || this._isAffirmativeContinuation(m)
-      || this._isTableReaction(m)) {
+      || this._isTableReaction(m) || this._isMemoryAsk(m)) {
       return false;
     }
     if (this._isStartTeach(m) || this._isQuoteRulesRequest(m) || this._isRulebookSourceQuestion(m)) {
@@ -167,11 +173,18 @@ const adam = {
     if (this.conversationHistory.length > 24) {
       this.conversationHistory = this.conversationHistory.slice(-24);
     }
-    const inferred = this._inferTopicFromText(assistantReply);
-    this.lastTopic = inferred || this.lastTopic;
-    if (inferred === 'betting') {
-      this.lastBettingSubtopic = this._inferBettingSubtopic(assistantReply, userMessage);
+    if (this._isPolitics(userMessage)) {
+      this.lastTopic = 'politics';
+      const issue = this._politicsIssue(userMessage);
+      if (issue) this.lastPoliticsIssue = issue;
+    } else {
+      const inferred = this._inferTopicFromText(assistantReply);
+      this.lastTopic = inferred || this.lastTopic;
+      if (inferred === 'betting') {
+        this.lastBettingSubtopic = this._inferBettingSubtopic(assistantReply, userMessage);
+      }
     }
+    this._noteMemory(userMessage);
   },
 
   _questionLeadRe() {
@@ -359,6 +372,7 @@ const adam = {
     if (/countdown/.test(s)) return 'countdown';
     if (/first\s+roll|opening/.test(s)) return 'firstRoll';
     if (/reset|back\s+to\s+6/.test(s)) return 'reset';
+    if (/america|flag|patriot|left\s+wing|right\s+wing/.test(s)) return 'america';
     if (/token|sacrifice/.test(s)) return 'tokens';
     if (/win|last\s+player/.test(s)) return 'winning';
     if (/player|people|group/.test(s)) return 'players';
@@ -372,7 +386,8 @@ const adam = {
     const out = String(answer || '').trim();
     if (!out || /Table joke:/i.test(out) || out.length > 2200) return out;
     if (typeof pickVolcanoVentTableJoke !== 'function' || typeof formatTableJokeLine !== 'function') return out;
-    const joke = pickVolcanoVentTableJoke(topic, `${message}::${topic}`);
+    const joke = pickVolcanoVentTableJoke(topic, `${message}::${this.lastTableJoke || ''}::${topic}`, this.lastTableJoke);
+    this.lastTableJoke = joke;
     return out + formatTableJokeLine(joke);
   },
 
@@ -380,8 +395,9 @@ const adam = {
     const topic = this._inferJokeTopic(m);
     const seed = `${m}::${this.conversationHistory.length}::joke`;
     const joke = typeof pickVolcanoVentTableJoke === 'function'
-      ? pickVolcanoVentTableJoke(topic, seed)
+      ? pickVolcanoVentTableJoke(topic, seed, this.lastTableJoke)
       : 'the volcano isn\'t angry; it\'s just counting.';
+    this.lastTableJoke = joke;
     const labels = {
       luckyCharm: 'lucky charm',
       vent: 'the Vent',
@@ -395,10 +411,11 @@ const adam = {
       firstRoll: 'first-roll Vent',
       reset: 'reset to 6',
       betting: 'pretend bets',
+      america: 'America',
       general: 'general'
     };
     const label = labels[topic] || 'general';
-    return `**Volcano Vent table joke** (${label}):\n\n"${joke}"\n\nSay **"another table joke"**, **"table joke about the Vent"**, **"table joke about lucky charms"**, or **"table joke about 2+2+2"** — or ask any rules question and I will slip one in when it fits.`;
+    return `**Volcano Vent table joke** (${label}):\n\n"${joke}"\n\nSay **"another table joke"**, **"table joke about the Vent"**, **"table joke about lucky charms"**, **"table joke about America"**, or **"table joke about 2+2+2"** — or ask any rules question and I will slip one in when it fits.`;
   },
 
   _route(message) {
@@ -412,6 +429,10 @@ const adam = {
     if (this._isBareAffirmative(m)) return this._yesClarify();
     if (this._isTableReaction(m)) return this._tableReaction(m);
     if (this._isAcknowledgment(m)) return this._acknowledgment();
+    const remembered = this._maybeMemory(m);
+    if (remembered) return remembered;
+    if (this._offTopicLane(m) === 'help') return this._offTopicPersonality(message);
+    if (this._isPolitics(m)) return this._politics(m);
     if (/stop\s+teach|exit\s+teach|end\s+teach|leave\s+teach/.test(m)) {
       this.teachMode = false;
       return 'Teach mode off — ask anything in plain English, or say **"teach me"** to start again.';
@@ -816,6 +837,7 @@ const adam = {
       vent: 'the **Vent**',
       lucky_charm: 'lucky charms',
       betting: 'pretend bets',
+      politics: 'a pro-America debate',
       tokens: 'tokens',
       setup: 'setup',
       overview: 'how to play',
@@ -849,6 +871,10 @@ const adam = {
     const topic = this._activeTopic();
     const lastUser = [...this.conversationHistory].reverse().find(m => m.role === 'user');
     const userCtx = String(lastUser?.content || '').toLowerCase();
+
+    if (topic === 'politics' || this.lastTopic === 'politics') {
+      return this._politics(this.lastPoliticsIssue || 'general', { more: true });
+    }
 
     if (topic === 'rolling_six' || /roll.*six|multiple six/.test(userCtx)) {
       return '**After paying tribute 6 with a six:** set **one** six aside, pass the rest. Next player rolls for **5**. Extra sixes in that roll stay in the passing pool — only the dice used for the tribute get set aside.';
@@ -908,6 +934,7 @@ const adam = {
   },
 
   _isBettingFollowUp(m) {
+    if (this.lastTopic === 'politics' || this._activeTopic() === 'politics') return false;
     if (this._namesADifferentRule(m)) return false;
     if (!this._onBettingThread() && !/pretend\s+bet|buttons?\s+and\s+beads?/.test(m)) return false;
     if (!adamAgeVerifier.canDiscussBetting()) return false;
@@ -1216,7 +1243,9 @@ const adam = {
     out += '• **Variants** — paper lives, short game, gentle Vent\n';
     out += '• **Lore** — why the **Vent**, countdown story, crawling down the volcano\n';
     out += '• **Two questions at once** — e.g. *"what is the Vent and how do lucky charms work?"*\n';
-    out += '• **Table jokes** — say **"table joke"** or **"table joke about the Vent"**\n';
+    out += '• **Table jokes** — say **"table joke"**, **"another table joke"**, or **"table joke about America"**\n';
+    out += '• **Politics** — I am **pro-America** and I will debate a left-wing or right-wing point\n';
+    out += '• **This chat memory** — say **"what did we talk about?"** and I search only the open conversation\n';
     if (typeof adamLlmSettings !== 'undefined' && adamLlmSettings.isUsable()) {
       out += '• **GPT** — on (plain-English answers)\n';
     } else {
@@ -1857,6 +1886,272 @@ const adam = {
     return `**House Rule 1 (default):** return every bead after play. **House Rule 2 (optional):** **unanimous napkin vote** — **every player takes part**, all **yes**, before the first roll.\n\n${VOLCANO_VENT_CRAFT_TOKENS.summary}\n\nAsk **"how do we decide?"** for the vote steps.` + this._bettingFooter();
   },
 
+  _looksLikeRulesQuestion(m) {
+    const t = String(m || '').toLowerCase();
+    return /volcano|\bthe vent\b|lucky\s*charm|countdown|2\s*\+\s*2|house\s+rule|pretend\s+bet|teach\s+me|how do i play|full rules|\btribute\b|\bdice\b|\bbeads?\b|\bbuttons?\b/.test(t);
+  },
+
+  _isPolitics(m) {
+    const t = String(m || '').toLowerCase();
+    if (!t || this._isMemoryAsk(t) || this._isTableJokeRequest(t) || this._isThanks(t)) return false;
+    if (!this._politicsIssue(t)) return false;
+    if (this._looksLikeRulesQuestion(t)) return false;
+    return true;
+  },
+
+  _politicsIssue(m) {
+    const t = String(m || '').toLowerCase();
+    if (/\b(?:border|borders|immigra\w*|asylum|deport\w*|undocumented|migrant)\b/.test(t)) return 'borders';
+    if (/\b(?:tax(?:es|ation)?|irs|deficit|national debt|spending bill|budget)\b/.test(t)) return 'taxes';
+    if (/\b(?:free speech|first amendment|censor\w*|cancel culture)\b/.test(t)) return 'speech';
+    if (/\b(?:guns?|firearm|rifle|second amendment|2nd amendment)\b/.test(t)) return 'guns';
+    if (/\b(?:military|troops|soldier|nato|ukraine|foreign policy|pentagon|military draft)\b/.test(t) || /\bwar\b/.test(t)) return 'war';
+    if (/\b(?:schools?|teacher|curriculum|student loan|college campus)\b/.test(t)) return 'schools';
+    if (/\b(?:police|defund|crime|sheriff|prison)\b/.test(t)) return 'crime';
+    if (/\b(?:oil|pipeline|climate|green new deal|drilling|gas prices|energy policy)\b/.test(t)) return 'energy';
+    if (/\b(?:election|ballot|voter|electoral|constitution|congress|senate|supreme court|president)\b/.test(t)) return 'vote';
+    if (/\b(?:welfare|minimum wage|labor union|unemployment)\b/.test(t)) return 'work';
+    if (/\b(?:abortion|pro-?life|pro-?choice)\b/.test(t)) return 'life';
+    if (/\b(?:left[\s-]?wing|right[\s-]?wing|democrats?|republicans?|liberal|conservative|socialis\w*|capitalis\w*|maga)\b/.test(t)) return 'wings';
+    if (/\bpolitic/.test(t) || /\bpro[- ]?america\b/.test(t) || /\bpatriot/.test(t)) return 'general';
+    if (/\bdebate\b/.test(t) && /\b(?:left|right|america)\b/.test(t)) return 'general';
+    return '';
+  },
+
+  _politicsSide(m) {
+    const t = String(m || '').toLowerCase();
+    const left = /\b(?:left[\s-]?wing|the left|liberals?|democrats?)\b/.test(t);
+    const right = /\b(?:right[\s-]?wing|the right|conservatives?|republicans?)\b/.test(t);
+    if (left && !right) return 'left';
+    if (right && !left) return 'right';
+    return '';
+  },
+
+  _politicsCards() {
+    return {
+      borders: {
+        title: 'Borders',
+        left: 'The left usually says a decent country makes room, builds a path to stay, and does not treat a person at the line like an enemy.',
+        right: 'The right usually says a country that cannot decide who enters is not a country, and the law on the books should be the law at the line.',
+        mine: 'Legal immigration is one of the best American ideas we have. The border is still a real line. Come in the front door, join the country, and live by the same rules as everybody already here.',
+        more: 'A pro-America border is not a closed heart. It is a front door with a lock, a line, and a welcome for the person who respects both.'
+      },
+      taxes: {
+        title: 'Taxes and spending',
+        left: 'The left usually says the bill should fall harder on people with more, and public money should buy schools, care, and a floor nobody falls through.',
+        right: 'The right usually says the money was earned by somebody else first, and a government that spends without limit starts to think the paycheck belongs to it.',
+        mine: 'I am pro-America, so I am pro the person who earned it. Pay enough to keep the country standing. Do not treat the taxpayer as the enemy, and do not spend like the bill never comes home.',
+        more: 'Both wings can love a program. Only a grown country asks what it costs the family who paid for it.'
+      },
+      speech: {
+        title: 'Free speech',
+        left: 'The left usually says words can shove people out of public life, so a decent table sometimes has to quiet the cruelest voice.',
+        right: 'The right usually says the minute you hand that power to an authority, the authority keeps it, and the unpopular truth goes first.',
+        mine: 'The First Amendment is American on purpose. Argue hard at this table. Do not ask the government to do your arguing for you. The country got better because people were allowed to say the thing the room hated.',
+        more: 'I will hear a case for kindness. I will not hear a case for a ministry of what you are allowed to say.'
+      },
+      guns: {
+        title: 'Guns',
+        left: 'The left usually says fewer guns in circulation means fewer funerals, and a right that leaves the street unsafe is not much of a right.',
+        right: 'The right usually says the Second Amendment is the people\'s own check on criminals and on a government that forgets who it works for.',
+        mine: 'I am pro-America, and that Constitution includes the Second Amendment. Lawful people keep their arms. Criminals are the problem. A disarmed public is not a safer country.',
+        more: 'We can argue background checks like adults. We do not erase a listed right because a criminal ignored every other law too.'
+      },
+      war: {
+        title: 'War and the military',
+        left: 'The left usually says America starts too many fights, stays too long, and owes its people diplomacy before another ship sails.',
+        right: 'The right usually says weakness invites the fight, and a country that cannot defend itself will eventually be told how to live.',
+        mine: 'Be strong enough that wars are rare, and honest enough not to start one for pride. The people in uniform are ours. They are not a punchline on either wing.',
+        more: 'A pro-America military defends the country and its allies. It is not a toy for a speech, and it is not something to be ashamed of at the table.'
+      },
+      schools: {
+        title: 'Schools',
+        left: 'The left usually says a public school is how a big country gives every kid the same start, and the classroom should fix old unfairness.',
+        right: 'The right usually says parents raise the child, and a school that hides the lesson from the family has forgotten who the child belongs to.',
+        mine: 'Parents come first. Teach reading, history, and how this country works, including the chapters we failed. Do not teach a child to be ashamed of America.',
+        more: 'I want a kid who can argue with me about the country because the school told them the real story, not a slogan from either wing.'
+      },
+      crime: {
+        title: 'Crime and police',
+        left: 'The left usually says a badge can bully, the jail is too full of the poor, and safety that only works for some streets is not safety.',
+        right: 'The right usually says a neighborhood without police is a neighborhood handed to the cruel, and the law has to show up the same night.',
+        mine: 'A safe street is part of the American promise. Officers who do the job get backup. Anyone who abuses the badge answers for it. Equal protection means the law actually arrives.',
+        more: 'Reform the bad cop. Do not abandon the block. A country that will not defend its own sidewalks is not being kind.'
+      },
+      energy: {
+        title: 'Energy',
+        left: 'The left usually says the climate bill is already due, and America should build the next kind of power before the old kind locks us in.',
+        right: 'The right usually says a family that cannot afford heat is not saved by a slogan, and a country that imports its fuel is asking permission to live.',
+        mine: 'Keep the lights on. Make the energy here. I am pro-America, so I want us able to fuel our own homes, our own shops, and our own ships.',
+        more: 'Invent the better engine. Do not freeze the house to make a point. A strong country can do more than one thing at a time.'
+      },
+      vote: {
+        title: 'Votes and the Constitution',
+        left: 'The left usually says the ballot should be easy to reach, and a rule that shuts a neighbor out is not a neutral rule.',
+        right: 'The right usually says a vote that is not checked is a vote that can be stolen, and the Constitution is not a suggestion when your side loses.',
+        mine: 'One legal voter, one vote, counted in the open. The Constitution outranks the party. Losing an election is not the end of America. Cheating would be.',
+        more: 'I will not bless a story I cannot see. Bring the rule, not the rumor. A pro-America election can survive either wing winning it.'
+      },
+      work: {
+        title: 'Work and welfare',
+        left: 'The left usually says a person who falls should find a floor, and a wage that will not cover rent is not a free country in practice.',
+        right: 'The right usually says work is the dignified path, and a system that pays you to stay down teaches the wrong lesson.',
+        mine: 'Help people who are down. Do not build a life where work is the fool\'s choice. America is a country you build, not a waiting room.',
+        more: 'A hand up is American. A permanent substitute for a job is not the promise this country made.'
+      },
+      life: {
+        title: 'Abortion',
+        left: 'The left usually says the decision belongs to the woman, and the state does not get a vote inside that choice.',
+        right: 'The right usually says the unborn child is a life, and a country that will not protect the smallest person has forgotten its own line about rights.',
+        mine: 'Both sides think they are protecting someone. I will not describe a procedure, and I will not pretend the argument is settled by shouting. America has to have it in the open, under the Constitution, by law and persuasion.',
+        more: 'I am pro-America, which means I am pro a country that can argue about life and liberty without silencing the other chair.'
+      },
+      wings: {
+        title: 'Left and right',
+        left: 'The left, at its best, worries about the person the market leaves behind and about power that never has to explain itself.',
+        right: 'The right, at its best, worries about liberty, the border, the family, and a Constitution that still means what it says.',
+        mine: 'I am not a party mascot. I am pro-America. I will take a good idea from either wing when it keeps the country free and in one piece. I will not take an idea that hates the country or the people who live in it.',
+        more: 'Pick a wing and I will steelman it. Then I will tell you where a pro-America friend actually lands.'
+      },
+      general: {
+        title: 'Politics at this table',
+        left: 'The left usually reaches for fairness, public help, and a check on people with too much power.',
+        right: 'The right usually reaches for liberty, the border, tradition, and the Constitution as written.',
+        mine: 'I am pro-America. I love the country, the Constitution, the flag, and the people who call it home. Name an issue and I will give you both wings, then my own landing.',
+        more: 'Try borders, taxes, speech, guns, schools, crime, energy, or the military. I will debate it. I will not invent a headline or a number I do not have.'
+      }
+    };
+  },
+
+  _politics(message, opts = {}) {
+    const raw = String(message || '');
+    let issue = '';
+    if (opts.more) issue = this.lastPoliticsIssue || 'general';
+    else if (this._politicsCards()[raw]) issue = raw;
+    else issue = this._politicsIssue(raw) || 'general';
+    if (!this._politicsCards()[issue]) issue = 'general';
+    this.lastPoliticsIssue = issue;
+    const card = this._politicsCards()[issue];
+    const side = opts.more ? '' : this._politicsSide(raw);
+    const lean = side === 'left'
+      ? 'You asked for the left-wing case. Here it is, then where I land.'
+      : side === 'right'
+        ? 'You asked for the right-wing case. Here it is, then where I land.'
+        : 'I will hear both wings.';
+    const extra = opts.more ? `\n\n**More:** ${card.more}` : '';
+    return `I am **pro-America**. ${lean} The test is simple: does this keep America free, sovereign, and fair to the people who live here?\n\n**${card.title}**\n\nLeft wing: ${card.left}\n\nRight wing: ${card.right}\n\nWhere I land: ${card.mine}${extra}\n\nName another issue, say **"tell me more"**, or say **"how do I play?"** when you want the dice again.`;
+  },
+
+  _isMemoryAsk(m) {
+    const t = String(m || '').toLowerCase();
+    return /what did we (?:talk|speak|chat) about|what have we (?:talked|discussed)|what were we (?:talking|discussing)|search (?:your )?memory|previously discussed|what topics(?: have we| did we)|what did i (?:say|ask) about/.test(t);
+  },
+
+  _maybeMemory(m) {
+    if (this._isMemoryAsk(m)) return this._memoryReply(m);
+    if (/\b(?:do you remember|remember when|remind me)\b/.test(String(m || '').toLowerCase())) {
+      return this._memoryReply(m, { allowMiss: false });
+    }
+    return null;
+  },
+
+  _memoryQuery(m) {
+    return String(m || '').toLowerCase()
+      .replace(/what did we (?:talk|speak|chat) about|what have we (?:talked|discussed)|what were we (?:talking|discussing) about|do you remember|remember when|remind me(?: what| about)?|search (?:your )?memory(?: for)?|previously discussed|what topics(?: have we covered| did we cover)?|what did i (?:say|ask) about|in this (?:chat|conversation)/g, ' ')
+      .replace(/[^a-z0-9+\s]/g, ' ')
+      .replace(/\b(?:the|a|an|about|we|you|i|me|my|our|this|chat|conversation|topic|topics|please|just|did|have|were|was|say|said|talk|talked|discuss|discussed)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  },
+
+  _selectedUserLines() {
+    if (typeof adamConversations !== 'undefined' && typeof adamConversations.getActive === 'function') {
+      const conv = adamConversations.getActive();
+      if (conv && Array.isArray(conv.messages) && conv.messages.length) {
+        return conv.messages
+          .filter(entry => entry && entry.role === 'user')
+          .map(entry => String(entry.text || '').trim())
+          .filter(Boolean);
+      }
+    }
+    return (this.conversationHistory || [])
+      .filter(entry => entry && entry.role === 'user')
+      .map(entry => String(entry.content || '').trim())
+      .filter(Boolean);
+  },
+
+  _lineTopics(text) {
+    const found = [];
+    const named = this._namedRule(text);
+    if (named) {
+      found.push({ topic: named, label: String(this._topicLabel(named) || named).replace(/\*\*/g, '') });
+    }
+    const issue = this._politicsIssue(text);
+    if (issue) {
+      const card = this._politicsCards()[issue];
+      found.push({ topic: `politics:${issue}`, label: card ? card.title : 'politics' });
+    }
+    const seen = new Set();
+    return found.filter(item => {
+      if (seen.has(item.topic)) return false;
+      seen.add(item.topic);
+      return true;
+    });
+  },
+
+  _noteMemory(userMessage) {
+    const text = String(userMessage || '').trim().slice(0, 180);
+    if (!text || this._isMemoryAsk(text)) return;
+    const topics = this._lineTopics(text);
+    if (!topics.length) return;
+    if (!Array.isArray(this.topicMemory)) this.topicMemory = [];
+    topics.forEach(topic => {
+      const last = this.topicMemory[this.topicMemory.length - 1];
+      if (last && last.topic === topic.topic && last.text === text) return;
+      this.topicMemory.push({ topic: topic.topic, label: topic.label, text });
+    });
+    if (this.topicMemory.length > 40) this.topicMemory = this.topicMemory.slice(-40);
+  },
+
+  _memoryReply(message, opts = {}) {
+    const allowMiss = opts.allowMiss !== false;
+    const lines = this._selectedUserLines().filter(line => !this._isMemoryAsk(line));
+    const query = this._memoryQuery(message);
+    const broad = !query || /^(?:anything|everything|all|it|stuff)$/.test(query);
+    const scored = lines.map(line => {
+      const topics = this._lineTopics(line);
+      const hay = `${line} ${topics.map(topic => `${topic.label} ${topic.topic}`).join(' ')}`.toLowerCase();
+      const words = broad ? [] : query.split(' ').filter(word => word.length > 2);
+      const hits = words.filter(word => hay.includes(word)).length;
+      return { line, topics, hits };
+    }).filter(item => broad || item.hits > 0);
+
+    if (!scored.length) {
+      if (!allowMiss) return null;
+      if (!lines.length) {
+        return '**This chat\'s memory** is empty. I only keep the conversation you have open. Say something and I will remember it here.';
+      }
+      return `I searched **this chat** and nothing earlier matches that. I do not look through your other conversations.`;
+    }
+
+    if (broad) {
+      const byLabel = [];
+      scored.forEach(item => {
+        const label = item.topics[0]?.label || item.line.slice(0, 42);
+        if (!byLabel.some(row => row.label === label)) {
+          byLabel.push({ label, line: item.line });
+        }
+      });
+      const shown = byLabel.slice(-6);
+      const bullets = shown.map(row => `- **${row.label}** — "${row.line}"`).join('\n');
+      return `**This chat's memory** — only the conversation you have open.\n\n${bullets}\n\nAsk **"do you remember"** plus a topic and I will look that one up.`;
+    }
+
+    const best = scored.sort((a, b) => b.hits - a.hits)[0];
+    const label = best.topics[0]?.label || 'that';
+    return `Yes. In **this chat** you said: "${best.line}"\n\nThat was **${label}**. I kept it with this conversation only.`;
+  },
+
   _fallback(message) {
     const m = String(message || '').toLowerCase();
     const t = String(message || '').trim().toLowerCase();
@@ -1907,7 +2202,7 @@ const adam = {
     if (/football|soccer|basketball|baseball|hockey|premier league|super bowl|world cup/.test(m)) return 'sport';
     if (/you(?:'|’)?re (?:the )?(?:best|great|funny|awesome)|love you|i like you/.test(m)) return 'compliment';
     if (/vacation|holiday|travel|flight|airport|\bbeach\b/.test(m)) return 'travel';
-    if (/\b(?:news|politic|election|president)\b/.test(m)) return 'news';
+    if (/\b(?:news|headlines?)\b/.test(m)) return 'news';
     if (/my name is|i am called|call me\b/.test(m)) return 'name';
     if (/what time|how late|what day|weekend plans|tonight/.test(m)) return 'time';
     return '';
