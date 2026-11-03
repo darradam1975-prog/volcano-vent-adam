@@ -255,6 +255,13 @@ check('beads not fallback', !/^I'm a \*\*rough guide\*\*/.test(adam.respond('how
 localStorage.setItem('adam-llm-settings', JSON.stringify({ enabled: true, model: 'gpt-5.4-mini', apiKey: 'sk-test1234567890', customModel: '' }));
 check('gpt enhances plain english', adamLlm.shouldEnhance('how do beads work', adam.respond('how do beads work')));
 check('off topic detected', adam._isLikelyOffTopic('what pizza should I order tonight'));
+check('off topic personality not rough guide', !/^I'm a \*\*rough guide\*\*/.test(adam.respond('what pizza should I order tonight')));
+check('pizza off topic has table voice', /Game-night call|extra slice|Pepperoni/i.test(adam.respond('what pizza should I order tonight')));
+check('pizza off topic beats betting thread', !/Still on \*\*pretend bets\*\*/.test(adam.respond('what pizza should I order tonight')));
+check('weather off topic personality', /rim|dice night|window/i.test(adam.respond('weather tomorrow')));
+check('work off topic personality', /shift|performance review|rim/i.test(adam.respond('my boss kept me late')));
+check('pet off topic personality', /dog|cat|countdown/i.test(adam.respond('my dog wants a seat')));
+check('off topic prompt stays in character', /in character|snack/i.test(adamLlm.buildOffTopicSystemPrompt()));
 check('game topic not off topic', !adam._isLikelyOffTopic('how does the vent work'));
 check('gpt enhances off topic fallback', adamLlm.shouldEnhance('weather tomorrow', adam.respond('weather tomorrow')));
 check('gpt enhances relationship advice', adamLlm.shouldEnhance('relationship advice', adam.respond('relationship advice')));
@@ -348,6 +355,7 @@ adam.conversationHistory = [];
 adam.lastTopic = 'general';
 adam.respond('house rules for pretend bets');
 check('betting got it follow up', /pretend bets|keeper|plain English/i.test(adam.respond('got it')));
+check('betting pot aside stays on bets', /pretend bets/i.test(adam.respond('what about the pot')));
 
 adam.conversationHistory = [];
 adam.lastTopic = 'general';

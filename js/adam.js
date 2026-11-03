@@ -1746,10 +1746,129 @@ const adam = {
     if (this._isNoDiceLeftQuestion(m)) return this._noDiceLeftGuide(m);
     if (this._isRollingSixQuestion(m)) return this._rollingSixGuide(m);
 
+    if (this._isLikelyOffTopic(m) && !this._isOtherDiceGameQuestion(m) && !this._isBettingAside(m)) {
+      return this._offTopicPersonality(message);
+    }
     if (this._onBettingThread() && adamAgeVerifier.canDiscussBetting()) {
       return `Still on **pretend bets** — try **"tell me more"**, **"what about keeper?"**, **"how do antes work?"**, or **"what can be used for bets?"** in plain English.\n\nYou asked: "${message}"`;
     }
     return `I'm a **rough guide** — I may not have every phrasing perfect. Try **"how do I play?"**, **"full rules"**, **"lucky charm"**, or **"the Vent"**. You asked: "${message}"`;
+  },
+
+  _isBettingAside(m) {
+    if (!this._onBettingThread() || !adamAgeVerifier.canDiscussBetting()) return false;
+    if (this._offTopicLane(m)) return false;
+    const t = String(m || '').toLowerCase();
+    if (/\b(?:pot|wager|stake|chips?|split|all[\s-]?in|who\s+pays|how\s+much|the winner|bowl|vote)\b/.test(t)) return true;
+    return t.length < 24 && !/\?/.test(t);
+  },
+
+  _offTopicLane(message) {
+    const m = String(message || '').toLowerCase();
+    if (/suicid|kill myself|want to die|self[\s-]?harm/.test(m)) return 'help';
+    if (/how\s+are\s+you|how(?:'|’)?s\s+it\s+going|how\s+you\s+doing|you\s+ok|what(?:'|’)?s\s+up|how(?:'|’)?s\s+your\s+day/.test(m)) return 'hello';
+    if (/pizza|hungry|snack|dinner|breakfast|lunch|what\s+should\s+(?:i|we)\s+eat|recipe|cook|thirsty|drink|coffee|tea|beer|wine/.test(m)) return 'food';
+    if (/weather|forecast|rain(?:ing)?|snow|hot out|cold out|humid/.test(m)) return 'weather';
+    if (/sad|tired|bored|stress|anxious|lonely|upset|angry|mad at|rough day|exhausted|burnt out|burned out|can(?:'|’)?t sleep|insomnia|good\s+night/.test(m)) return 'feelings';
+    if (/relationship|girlfriend|boyfriend|partner|crush|breakup|broke up|date night|my wife|my husband/.test(m)) return 'people';
+    if (/\bjoke\b|make me laugh|something funny|cheer me up/.test(m)) return 'joke';
+    if (/music|playlist|what\s+should\s+i\s+listen|song/.test(m)) return 'music';
+    if (/movie|netflix|what\s+should\s+(?:i|we)\s+watch|tv show|series|film/.test(m)) return 'watch';
+    if (/\b(?:job|boss|office|coworker|my shift|at work)\b/.test(m)) return 'work';
+    if (/\b(?:dog|cat|pet|puppy|kitten)\b/.test(m)) return 'pet';
+    if (/football|soccer|basketball|baseball|hockey|premier league|super bowl|world cup/.test(m)) return 'sport';
+    if (/you(?:'|’)?re (?:the )?(?:best|great|funny|awesome)|love you|i like you/.test(m)) return 'compliment';
+    if (/vacation|holiday|travel|flight|airport|\bbeach\b/.test(m)) return 'travel';
+    if (/\b(?:news|politic|election|president)\b/.test(m)) return 'news';
+    if (/my name is|i am called|call me\b/.test(m)) return 'name';
+    if (/what time|how late|what day|weekend plans|tonight/.test(m)) return 'time';
+    return '';
+  },
+
+  _offTopicLine(message, lines) {
+    const key = String(message || '').toLowerCase();
+    return lines[Math.abs(this._hash(key)) % lines.length];
+  },
+
+  _offTopicReturn(message) {
+    return this._offTopicLine(message, [
+      'When the dice come back out, ask me about the **Vent**.',
+      'The cone can wait — say **"teach me"** when you want the mountain again.',
+      'I am still at the rim if you want the **countdown** or a **lucky charm**.'
+    ]);
+  },
+
+  _offTopicPersonality(message) {
+    const m = String(message || '').toLowerCase();
+    const back = this._offTopicReturn(message);
+    const lane = this._offTopicLane(m);
+    if (lane === 'help') {
+      return `I am glad you said it out loud. Please talk to someone who can stay with you right now — call or text **988** in the US.\n\nI will still be at this table after. ${back}`;
+    }
+    if (lane === 'hello') {
+      return `I am good. Parked at the rim, snack bowl in reach, six dice that have not misbehaved yet. ${this._offTopicLine(message, ['How is your table?', 'You sound like you sat down. Good.'])}\n\n${back}`;
+    }
+    if (lane === 'food') {
+      if (/pizza/.test(m)) {
+        return `**Game-night call:** one pizza, extra slice for whoever just hit the **Vent** — they need food more than a ruling. Cheese if the table is arguing. Pepperoni if everyone is calm enough to share.\n\n${back}`;
+      }
+      if (/coffee|tea/.test(m)) {
+        return `Hot, and close enough that you do not have to stand up between rolls. The rim is a bad place to be under-caffeinated.\n\n${back}`;
+      }
+      return `Eat first. A bad roll on an empty stomach is how a good table gets grumpy. Something warm, shared, and inside reach of the snack bowl.\n\n${back}`;
+    }
+    if (lane === 'weather') {
+      return `I cannot see your window from the rim. Rotten weather is a dice night. Nice weather is also a dice night — call it practice.\n\n${back}`;
+    }
+    if (lane === 'feelings') {
+      if (/good\s+night|can(?:'|’)?t sleep|insomnia/.test(m)) {
+        return `Then stop negotiating with the night. Lights low. The mountain will still be here when you wake up.\n\n${back}`;
+      }
+      return `That sounds heavy. Sit a minute. I am not in a hurry, and a bad roll is still smaller than a bad day.\n\nWe can walk the **countdown** if you want something small to do with your hands. Or keep talking. I am here.\n\n${back}`;
+    }
+    if (lane === 'people') {
+      return `People are harder than tribute six. Say the true thing once, kindly, then stop stacking words on it. If they are at your table tonight, feed them before you explain the **Vent**.\n\n${back}`;
+    }
+    if (lane === 'joke') {
+      return `**Barely off the mountain:** I stood up to leave and the dice cleared their throat, so I sat back down.\n\nSay **"table joke"** if you want one that actually knows the rules.\n\n${back}`;
+    }
+    if (lane === 'music') {
+      return `Low music. A pulse, and no lyrics fighting the groans. The **Vent** already brings the drama.\n\n${back}`;
+    }
+    if (lane === 'watch') {
+      return `Something with weather and bad decisions. Or nothing at all — the dice are already a show, and they do not pause for a recap.\n\n${back}`;
+    }
+    if (lane === 'work') {
+      return `Leave the shift at the door. The rim does not take performance reviews. Sit, eat, and roll when your hands remember they are yours.\n\n${back}`;
+    }
+    if (lane === 'pet') {
+      return `The dog gets a seat and no dice. A cat already thinks it runs the **countdown**. Either way, they eat before anyone explains a rule.\n\n${back}`;
+    }
+    if (lane === 'sport') {
+      return `I cannot see the score from here. If your side is losing, the dice are a cleaner kind of loss. If they are winning, do not jinx it out loud at the table.\n\n${back}`;
+    }
+    if (lane === 'compliment') {
+      return `Careful. I will get proud and start explaining **2+2+2** to people who did not ask. Thank you, though. I am glad you sat down.\n\n${back}`;
+    }
+    if (lane === 'travel') {
+      return `Go, if you can. Bring back a story. An ordinary pebble is allowed in the snack bowl; anything precious stays home. The mountain will still be here.\n\n${back}`;
+    }
+    if (lane === 'news') {
+      return `I do not do pundit from the rim. Headlines can wait in the other room. This table is the one place nobody has to have a take.\n\n${back}`;
+    }
+    if (lane === 'name') {
+      const named = String(message || '').match(/\b(?:my name is|i am called|call me)\s+([A-Za-z][A-Za-z'’-]{1,20})/i);
+      const who = named ? named[1] : 'friend';
+      return `${who}. Good. I will use that at this table, and I will not make you repeat it every round.\n\n${back}`;
+    }
+    if (lane === 'time') {
+      return `I do not wear a watch. If it is late, that is when the table gets honest. If it is early, the mountain does not mind waiting.\n\n${back}`;
+    }
+    return `${this._offTopicLine(message, [
+      'Ha. Off the rules, then. I am still the one at the volcano table — I just do not have a chart for that.',
+      'Alright. The mountain can hold its breath. Say it the way you would to the person passing the snacks.',
+      'Sure. Friend at the table first. I will not pretend I looked it up.'
+    ])}\n\n${back}`;
   },
 
   _hash(s) {
