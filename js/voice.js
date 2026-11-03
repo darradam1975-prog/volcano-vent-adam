@@ -379,7 +379,8 @@ const adamVoice = {
     rec.lang = 'en-US';
     rec.interimResults = true;
     rec.continuous = false;
-    rec.maxAlternatives = 1;
+    rec.maxAlternatives = 5;
+    this._biasRecognition(rec);
     rec.onstart = () => {
       this._sentThisListen = false;
       this.listening = true;
@@ -393,6 +394,67 @@ const adamVoice = {
     return rec;
   },
 
+  _biasRecognition(rec) {
+    if (!rec || this._phrasesOff) return;
+    const Phrase = window.SpeechRecognitionPhrase;
+    if (typeof Phrase !== 'function') return;
+    const hints = [
+      ['vent', 8],
+      ['the vent', 8],
+      ['Volcano Vent', 8],
+      ['Volcano Vent Dice', 6],
+      ['lucky charm', 5],
+      ['countdown', 4]
+    ];
+    try {
+      rec.phrases = hints.map(([phrase, boost]) => new Phrase(phrase, boost));
+    } catch {
+      this._phrasesOff = true;
+    }
+  },
+
+  _gameWordScore(text) {
+    const t = String(text || '').toLowerCase();
+    if (!t.trim()) return -100;
+    let score = 0;
+    if (/\bvents?\b/.test(t)) score += 5;
+    if (/\bvolcano\b/.test(t)) score += 2;
+    if (/\blucky\s*charms?\b/.test(t)) score += 2;
+    if (/\brents?\b|\bbents?\b/.test(t)) score -= 4;
+    return score;
+  },
+
+  _bestAlternative(result) {
+    if (!result) return '';
+    let best = result[0]?.transcript || '';
+    let bestScore = this._gameWordScore(best);
+    const count = typeof result.length === 'number' ? result.length : 1;
+    for (let i = 1; i < count; i++) {
+      const text = result[i]?.transcript || '';
+      const score = this._gameWordScore(text);
+      if (score > bestScore) {
+        best = text;
+        bestScore = score;
+      }
+    }
+    return best;
+  },
+
+  _correctHeard(text) {
+    const housing = /\b(?:pay|paying|paid|owe|owing|my|monthly|apartment|house|due)\s+$/i;
+    const cue = /^(?:the|a|an|about|on|onto|volcano|hit|miss|missed|that|this|your)$/i;
+    return String(text || '').replace(/\b(rent|rents|bent|bents)\b/gi, (word, _g, offset, whole) => {
+      const before = whole.slice(Math.max(0, offset - 32), offset);
+      if (housing.test(before)) return word;
+      const prev = (before.match(/([A-Za-z]+)\s+$/) || [])[1] || '';
+      const only = /^(?:a |an |the )?(?:rent|rents|bent|bents)$/i.test(whole.trim());
+      const asking = /^(?:tell me|what|whats|what's|how|about|explain|describe|talk)\b/i.test(whole.trim());
+      if (!cue.test(prev) && !only && !asking) return word;
+      const next = /s$/i.test(word) ? 'vents' : 'vent';
+      return word[0] === word[0].toUpperCase() ? next[0].toUpperCase() + next.slice(1) : next;
+    });
+  },
+
   _pendingLine() {
     const fromInput = document.getElementById('chat-input')?.value?.trim() || '';
     if (fromInput) return fromInput;
@@ -404,7 +466,7 @@ const adamVoice = {
   },
 
   _commitHeard(text) {
-    const line = String(text || '').trim();
+    const line = this._correctHeard(String(text || '').trim());
     if (!line || this._sentThisListen) return;
     this._sentThisListen = true;
     this._phase = 'thinking';
@@ -422,21 +484,27 @@ const adamVoice = {
     let finalText = '';
     let interim = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
-      const piece = event.results[i][0]?.transcript || '';
+      const piece = this._bestAlternative(event.results[i]);
       if (event.results[i].isFinal) finalText += piece;
       else interim += piece;
     }
-    const shown = (finalText || interim).trim();
+    const shown = this._correctHeard((finalText || interim).trim());
     const input = document.getElementById('chat-input');
     if (input && shown) input.value = shown;
     if (shown) this._showOnChat(shown);
-    const heard = finalText.trim();
+    const heard = this._correctHeard(finalText.trim());
     if (!heard || this._sentThisListen) return;
     this._commitHeard(heard);
   },
 
   _onListenError(event) {
     const code = event?.error || '';
+    if (code === 'phrases-not-supported') {
+      this._phrasesOff = true;
+      try { if (this._recognition) this._recognition.phrases = []; } catch { /* ignore */ }
+      if (this._session) this._armListen(200);
+      return;
+    }
     if (code === 'aborted' || code === 'no-speech') return;
     if (code === 'not-allowed' || code === 'service-not-allowed') {
       this._session = false;

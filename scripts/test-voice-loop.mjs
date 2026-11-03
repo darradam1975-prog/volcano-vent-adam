@@ -153,5 +153,29 @@ adamVoice.lang = '';
 adamVoice.voiceUri = '';
 check('AI prefers the TTS installed on this device', adamVoice._pickVoice()?.voiceURI === 'custom');
 
+check('tell me about the rent is the vent', adamVoice._correctHeard('tell me about the rent') === 'tell me about the vent');
+check('what is the rent is the vent', adamVoice._correctHeard('what is the rent') === 'what is the vent');
+check('housing rent stays rent', adamVoice._correctHeard('I need to pay rent') === 'I need to pay rent');
+check('vent alternative beats rent', adamVoice._bestAlternative({
+  0: { transcript: 'tell me about the rent' },
+  1: { transcript: 'tell me about the vent' },
+  length: 2
+}) === 'tell me about the vent');
+
+adamVoice.loop = true;
+adamVoice.startTalk();
+const sentBeforeRent = sent.length;
+adamVoice._recognition.onresult({
+  resultIndex: 0,
+  results: [{
+    0: { transcript: 'tell me about the rent' },
+    isFinal: true,
+    length: 1
+  }]
+});
+check('heard rent is sent as vent', sent.at(-1) === 'tell me about the vent' && sent.length === sentBeforeRent + 1);
+check('chat draft shows vent', drafts.at(-1) === 'tell me about the vent');
+adamVoice.stopTalk();
+
 console.log(`\nPassed ${ok} / ${ok + fail}`);
 if (fail) process.exit(1);
