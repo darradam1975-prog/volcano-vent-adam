@@ -1,28 +1,73 @@
 /**
- * Adam The Volcano Vent Bot voice — English text-to-speech via Web Speech API.
+ * AI speech — Adam talks and listens.
+ * Voices are the English ones installed on this device.
  */
+const ADAM_AI_LANGS = {
+  'en-US': 'US',
+  'en-GB': 'UK',
+  'en-AU': 'Australia',
+  'en-IE': 'Ireland',
+  'en-IN': 'India',
+  'en-ZA': 'South Africa',
+  'en-CA': 'Canada',
+  'en-NZ': 'New Zealand',
+  en: 'English'
+};
+
+const ADAM_AI_MALE = ['Daniel', 'David', 'Mark', 'Guy', 'George', 'Ryan', 'Eric', 'Alex', 'Fred', 'James', 'Christopher', 'Brian'];
+const ADAM_AI_FEMALE = /female|woman|girl|zira|samantha|karen|susan|hazel|linda|aria|jenny|emma|lisa|nancy|sara|sonia|helen|laura|olivia|michelle|catherine|victoria|fiona|moira|tessa|kate|serena|salli|ivy|joanna|kimberly|kendra|amy/i;
+
 const adamVoice = {
   supported: typeof window !== 'undefined' && 'speechSynthesis' in window,
+  listenSupported: typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition),
   autoRead: localStorage.getItem('adam-voice-auto') === '1',
+  loop: localStorage.getItem('adam-voice-loop') !== '0',
   rate: Number(localStorage.getItem('adam-voice-rate')) || 0.92,
   pitch: Number(localStorage.getItem('adam-voice-pitch')) || 1,
+  voiceUri: localStorage.getItem('adam-ai-voice') || '',
+  gender: localStorage.getItem('adam-ai-gender') || 'any',
+  lang: localStorage.getItem('adam-ai-lang') || '',
+  resumeDelay: 450,
   speaking: false,
+  listening: false,
   voices: [],
   _lastText: '',
+  _recognition: null,
+  _session: false,
+  _phase: 'idle',
+  _speakGen: 0,
+  _sentThisListen: false,
+  _resumeTimer: null,
 
   init() {
-    if (!this.supported) return;
+    if (!this.supported && !this.listenSupported) return;
     this.toggleBtn = document.getElementById('voice-toggle');
+    this.micBtn = document.getElementById('voice-mic');
+    this.statusEl = document.getElementById('voice-status');
     this.rateInput = document.getElementById('voice-rate');
+    this.pitchInput = document.getElementById('voice-pitch');
     this.autoInput = document.getElementById('voice-auto');
+    this.loopInput = document.getElementById('voice-loop');
+    this.genderInput = document.getElementById('ai-gender');
+    this.voiceInput = document.getElementById('ai-voice');
 
     if (this.rateInput) this.rateInput.value = String(this.rate);
+    if (this.pitchInput) this.pitchInput.value = String(this.pitch);
     if (this.autoInput) this.autoInput.checked = this.autoRead;
+    if (this.loopInput) this.loopInput.checked = this.loop;
+    if (this.genderInput) this.genderInput.value = this.gender;
+    const unsupported = document.getElementById('ai-speech-unsupported');
+    if (unsupported) unsupported.classList.toggle('hidden', this.supported);
 
-    speechSynthesis.addEventListener('voiceschanged', () => this._loadVoices());
-    this._loadVoices();
+    if (this.supported) {
+      speechSynthesis.addEventListener('voiceschanged', () => this._loadVoices());
+      this._loadVoices();
+    }
     this._syncToggle();
+    this._syncMic();
+    this._syncSliderLabels();
     this._bind();
+    this._fillAiVoices();
   },
 
   _bind() {
@@ -32,29 +77,207 @@ const adamVoice = {
       if (this.autoInput) this.autoInput.checked = this.autoRead;
       this._syncToggle();
       if (this.autoRead) this.speak(this._lastText);
+      else this.stop();
     });
+    this.micBtn?.addEventListener('click', () => this.toggleTalk());
     this.rateInput?.addEventListener('input', () => {
       this.rate = Number(this.rateInput.value) || 0.92;
       localStorage.setItem('adam-voice-rate', String(this.rate));
+      this._syncSliderLabels();
     });
+    this.pitchInput?.addEventListener('input', () => {
+      this.pitch = Number(this.pitchInput.value) || 1;
+      localStorage.setItem('adam-voice-pitch', String(this.pitch));
+      this._syncSliderLabels();
+    });
+    this.genderInput?.addEventListener('change', () => {
+      this.gender = this.genderInput.value || 'any';
+      localStorage.setItem('adam-ai-gender', this.gender);
+      this._fillAiVoices();
+    });
+    this.voiceInput?.addEventListener('change', () => {
+      this.voiceUri = this.voiceInput.value || '';
+      localStorage.setItem('adam-ai-voice', this.voiceUri);
+    });
+    document.getElementById('ai-preview')?.addEventListener('click', () => this.preview());
     this.autoInput?.addEventListener('change', () => {
       this.autoRead = this.autoInput.checked;
       localStorage.setItem('adam-voice-auto', this.autoRead ? '1' : '0');
       this._syncToggle();
+      if (!this.autoRead) this.stop();
+    });
+    this.loopInput?.addEventListener('change', () => {
+      this.loop = !!this.loopInput.checked;
+      localStorage.setItem('adam-voice-loop', this.loop ? '1' : '0');
     });
   },
 
   _loadVoices() {
-    this.voices = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+    this.voices = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang || '') || /^en/i.test(v.name || ''));
+    this._fillAiVoices();
+  },
+
+  _normLang(lang) {
+    const raw = String(lang || '').replace('_', '-');
+    const [a, b] = raw.split('-');
+    if (!a) return '';
+    return b ? `${a.toLowerCase()}-${b.toUpperCase()}` : a.toLowerCase();
+  },
+
+  _langLabel(code) {
+    const norm = this._normLang(code);
+    return ADAM_AI_LANGS[norm] || ADAM_AI_LANGS[norm.split('-')[0]] || norm;
+  },
+
+  _voiceText(voice) {
+    return `${voice?.name || ''} ${voice?.voiceURI || ''}`;
+  },
+
+  _isFemale(voice) {
+    return ADAM_AI_FEMALE.test(this._voiceText(voice));
+  },
+
+  _isMale(voice) {
+    if (this._isFemale(voice)) return false;
+    const text = this._voiceText(voice);
+    if (/\bmale\b/i.test(text)) return true;
+    return ADAM_AI_MALE.some(name => new RegExp(`\\b${name}\\b`, 'i').test(text));
+  },
+
+  _matchesGender(voice) {
+    if (this.gender === 'female') return this._isFemale(voice);
+    if (this.gender === 'male') return this._isMale(voice);
+    return true;
+  },
+
+  _matchesLang(voice) {
+    if (!this.lang) return true;
+    return this._normLang(voice?.lang) === this._normLang(this.lang);
+  },
+
+  _voiceId(voice) {
+    return voice?.voiceURI || `${voice?.name || ''}::${voice?.lang || ''}`;
+  },
+
+  _filteredVoices() {
+    return this.voices.filter(v => this._matchesLang(v) && this._matchesGender(v));
+  },
+
+  _installedLangs() {
+    const codes = new Set();
+    this.voices.forEach(v => {
+      const code = this._normLang(v.lang);
+      if (code) codes.add(code);
+    });
+    return [...codes].sort((a, b) => {
+      const order = Object.keys(ADAM_AI_LANGS);
+      return (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99) || a.localeCompare(b);
+    });
   },
 
   _pickVoice() {
-    const preferred = ['Daniel', 'Google UK English Male', 'Microsoft David', 'Alex', 'Fred', 'Mark'];
-    for (const name of preferred) {
-      const v = this.voices.find(x => x.name.includes(name));
-      if (v) return v;
+    const chosen = this.voiceUri && this.voices.find(v => this._voiceId(v) === this.voiceUri);
+    if (chosen && this._matchesLang(chosen) && this._matchesGender(chosen)) return chosen;
+    const pool = this._filteredVoices();
+    if (this.gender !== 'female') {
+      for (const name of ADAM_AI_MALE) {
+        const hit = pool.find(v => new RegExp(`\\b${name}\\b`, 'i').test(v.name || ''));
+        if (hit) return hit;
+      }
     }
+    if (pool.length) return pool[0];
     return this.voices[0] || null;
+  },
+
+  _listenLang() {
+    return this.lang || this._pickVoice()?.lang || 'en-US';
+  },
+
+  _syncSliderLabels() {
+    const rateVal = document.getElementById('voice-rate-val');
+    const pitchVal = document.getElementById('voice-pitch-val');
+    if (rateVal) rateVal.textContent = `${Number(this.rate).toFixed(2)}×`;
+    if (pitchVal) pitchVal.textContent = Number(this.pitch).toFixed(2);
+  },
+
+  _fillAiVoices() {
+    const picks = document.getElementById('ai-lang-picks');
+    const voiceSel = document.getElementById('ai-voice');
+    const count = document.getElementById('ai-voice-count');
+    if (!picks && !voiceSel && !count) return;
+
+    if (picks) {
+      picks.replaceChildren();
+      const langs = this._installedLangs();
+      [{ id: '', label: 'All' }, ...langs.map(code => ({ id: code, label: this._langLabel(code) }))].forEach(item => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ai-lang-pick' + (this.lang === item.id ? ' active' : '');
+        btn.textContent = item.label;
+        btn.addEventListener('click', () => {
+          this.lang = item.id;
+          localStorage.setItem('adam-ai-lang', this.lang);
+          this._fillAiVoices();
+        });
+        picks.appendChild(btn);
+      });
+    }
+
+    const list = this._filteredVoices();
+    if (voiceSel) {
+      const previous = this.voiceUri;
+      voiceSel.replaceChildren();
+      const auto = document.createElement('option');
+      auto.value = '';
+      auto.textContent = list.length ? 'Best match' : 'No voice installed for this choice';
+      voiceSel.appendChild(auto);
+      list.forEach(voice => {
+        const opt = document.createElement('option');
+        opt.value = this._voiceId(voice);
+        opt.textContent = `${voice.name} — ${this._langLabel(voice.lang)}`;
+        voiceSel.appendChild(opt);
+      });
+      const stillThere = previous && list.some(v => this._voiceId(v) === previous);
+      this.voiceUri = stillThere ? previous : '';
+      if (!stillThere) localStorage.setItem('adam-ai-voice', '');
+      voiceSel.value = this.voiceUri;
+    }
+
+    if (count) {
+      const total = this.voices.length;
+      const shown = list.length;
+      count.textContent = total
+        ? `${shown} of ${total} installed English voices. Add more in Windows Settings, then reopen AI.`
+        : 'No English voice is installed yet. Add one in Windows Settings, then reopen AI.';
+    }
+  },
+
+  preview() {
+    if (!this.supported) {
+      this._setStatus('This browser cannot speak. Use Chrome or Edge.');
+      return;
+    }
+    if (this._session || this._phase !== 'idle') this.stopTalk();
+    const voice = this._pickVoice();
+    const gen = ++this._speakGen;
+    speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance('Hi, I am Adam, your Volcano Vent guide. Ask me about the Vent, the countdown, or a lucky charm.');
+    if (voice) {
+      utter.voice = voice;
+      utter.lang = voice.lang || this._listenLang();
+    } else {
+      utter.lang = this._listenLang();
+    }
+    utter.rate = this.rate;
+    utter.pitch = this.pitch;
+    this._setStatus(`AI preview — ${voice?.name || 'default voice'}`);
+    const finish = () => {
+      if (gen !== this._speakGen) return;
+      if (this._phase === 'idle') this._setStatus('');
+    };
+    utter.onend = finish;
+    utter.onerror = finish;
+    speechSynthesis.speak(utter);
   },
 
   _syncToggle() {
@@ -63,15 +286,174 @@ const adamVoice = {
     const label = this.toggleBtn.querySelector('.voice-label');
     if (this.autoRead) {
       this.toggleBtn.classList.add('on');
-      this.toggleBtn.title = 'Listen: on — bot reads replies aloud';
+      this.toggleBtn.title = 'AI on — Adam reads replies aloud';
+      this.toggleBtn.setAttribute('aria-label', 'AI on');
       if (icon) icon.textContent = '🔊';
-      if (label) label.textContent = 'Listen on';
+      if (label) label.textContent = 'AI on';
     } else {
       this.toggleBtn.classList.remove('on');
-      this.toggleBtn.title = 'Listen: off — tap to hear replies aloud';
+      this.toggleBtn.title = 'AI off — tap to hear Adam speak';
+      this.toggleBtn.setAttribute('aria-label', 'AI off');
       if (icon) icon.textContent = '🔇';
-      if (label) label.textContent = 'Listen off';
+      if (label) label.textContent = 'AI';
     }
+  },
+
+  _setStatus(text) {
+    if (!this.statusEl) return;
+    this.statusEl.textContent = text || '';
+    this.statusEl.classList.toggle('hidden', !text);
+  },
+
+  _syncMic() {
+    const btn = this.micBtn;
+    const live = this._session || this._phase !== 'idle';
+    if (btn) {
+      btn.classList.toggle('listening', this._phase === 'listening');
+      btn.classList.toggle('speaking', this._phase === 'speaking' || this._phase === 'thinking');
+      btn.setAttribute('aria-pressed', live ? 'true' : 'false');
+      const label = live ? 'Stop AI' : 'Talk with AI';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+      const icon = btn.querySelector('.voice-mic-icon');
+      if (icon) icon.textContent = live ? '⏹' : '🎤';
+    }
+    if (this._phase === 'listening') this._setStatus('Listening… pause when you finish.');
+    else if (this._phase === 'thinking') this._setStatus('Got it. AI is answering…');
+    else if (this._phase === 'speaking') this._setStatus('AI is speaking…');
+    else if (!this._statusLocked) this._setStatus('');
+  },
+
+  _ensureRecognition() {
+    if (this._recognition || !this.listenSupported) return this._recognition;
+    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new Ctor();
+    rec.lang = 'en-US';
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    rec.onstart = () => {
+      this._sentThisListen = false;
+      this.listening = true;
+      this._phase = 'listening';
+      this._syncMic();
+    };
+    rec.onresult = (event) => this._onHeard(event);
+    rec.onerror = (event) => this._onListenError(event);
+    rec.onend = () => this._onListenEnd();
+    this._recognition = rec;
+    return rec;
+  },
+
+  _onHeard(event) {
+    if (this._phase === 'speaking') return;
+    let finalText = '';
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const piece = event.results[i][0]?.transcript || '';
+      if (event.results[i].isFinal) finalText += piece;
+      else interim += piece;
+    }
+    const input = document.getElementById('chat-input');
+    const shown = (finalText || interim).trim();
+    if (input && shown) input.value = shown;
+    const heard = finalText.trim();
+    if (!heard || this._sentThisListen) return;
+    this._sentThisListen = true;
+    this._phase = 'thinking';
+    if (!this.loop) this._session = false;
+    this._syncMic();
+    try { this._recognition?.stop(); } catch { /* already stopped */ }
+    if (typeof sendMessage === 'function') sendMessage();
+  },
+
+  _onListenError(event) {
+    const code = event?.error || '';
+    if (code === 'aborted' || code === 'no-speech') return;
+    if (code === 'not-allowed' || code === 'service-not-allowed') {
+      this._session = false;
+      this._phase = 'idle';
+      this._statusLocked = true;
+      this._setStatus('Microphone is blocked. Allow the mic for this site, then tap AI again.');
+      this._syncMic();
+      this._statusLocked = false;
+      return;
+    }
+    if (code === 'audio-capture') {
+      this._session = false;
+      this._phase = 'idle';
+      this._statusLocked = true;
+      this._setStatus('No microphone found.');
+      this._syncMic();
+      this._statusLocked = false;
+    }
+  },
+
+  _onListenEnd() {
+    this.listening = false;
+    if (!this._session || this._phase === 'thinking' || this._phase === 'speaking') {
+      this._syncMic();
+      return;
+    }
+    this._armListen(200);
+  },
+
+  _armListen(delay) {
+    clearTimeout(this._resumeTimer);
+    const wait = typeof delay === 'number' ? delay : this.resumeDelay;
+    this._resumeTimer = setTimeout(() => this._beginListen(), wait);
+  },
+
+  _beginListen() {
+    if (!this._session || !this.listenSupported) return;
+    if (this._phase === 'speaking' || this._phase === 'thinking') return;
+    const rec = this._ensureRecognition();
+    if (!rec) return;
+    rec.lang = this._listenLang();
+    this._phase = 'listening';
+    this._syncMic();
+    try {
+      rec.start();
+    } catch {
+      /* already started */
+    }
+  },
+
+  toggleTalk() {
+    if (this._session || this._phase !== 'idle') this.stopTalk();
+    else this.startTalk();
+  },
+
+  startTalk() {
+    this._statusLocked = false;
+    if (!this.listenSupported) {
+      this._setStatus('This browser cannot hear you. Use Chrome or Edge, then tap AI.');
+      return;
+    }
+    this.autoRead = true;
+    localStorage.setItem('adam-voice-auto', '1');
+    if (this.autoInput) this.autoInput.checked = true;
+    this._syncToggle();
+    this.stop();
+    if (this.supported) {
+      const prime = new SpeechSynthesisUtterance(' ');
+      prime.volume = 0;
+      speechSynthesis.speak(prime);
+    }
+    this._session = true;
+    this._beginListen();
+  },
+
+  stopTalk() {
+    this._session = false;
+    this._phase = 'idle';
+    clearTimeout(this._resumeTimer);
+    this._speakGen += 1;
+    this.stop();
+    try { this._recognition?.abort?.(); } catch { /* ignore */ }
+    try { this._recognition?.stop(); } catch { /* ignore */ }
+    this.listening = false;
+    this._syncMic();
   },
 
   stripMarkdown(text) {
@@ -84,24 +466,45 @@ const adamVoice = {
   },
 
   speak(text) {
-    if (!this.supported || !text) return;
+    if (!text) return;
     this._lastText = text;
-    if (!this.autoRead) return;
+    if (!this.supported || !this.autoRead) {
+      this._afterSpeak();
+      return;
+    }
 
+    const gen = ++this._speakGen;
+    this._phase = 'speaking';
+    this.speaking = true;
+    this._syncMic();
+    try { this._recognition?.stop(); } catch { /* not listening */ }
     speechSynthesis.cancel();
+
     const utter = new SpeechSynthesisUtterance(this.stripMarkdown(text));
     const voice = this._pickVoice();
     if (voice) {
       utter.voice = voice;
-      utter.lang = voice.lang || 'en-US';
+      utter.lang = this.lang || voice.lang || 'en-US';
     } else {
-      utter.lang = 'en-US';
+      utter.lang = this._listenLang();
     }
     utter.rate = this.rate;
     utter.pitch = this.pitch;
-    this.speaking = true;
-    utter.onend = () => { this.speaking = false; };
+    const finish = () => {
+      if (gen !== this._speakGen) return;
+      this._afterSpeak();
+    };
+    utter.onend = finish;
+    utter.onerror = finish;
     speechSynthesis.speak(utter);
+  },
+
+  _afterSpeak() {
+    this.speaking = false;
+    if (this._phase === 'speaking' || this._phase === 'thinking') this._phase = 'idle';
+    this._syncMic();
+    if (this._session && this.loop) this._armListen(this.resumeDelay);
+    else this._session = false;
   },
 
   speakLast() {
@@ -116,15 +519,36 @@ const adamVoice = {
   saveFromForm() {
     const autoInput = document.getElementById('voice-auto');
     const rateInput = document.getElementById('voice-rate');
+    const pitchInput = document.getElementById('voice-pitch');
+    const loopInput = document.getElementById('voice-loop');
+    const genderInput = document.getElementById('ai-gender');
+    const voiceInput = document.getElementById('ai-voice');
     if (autoInput) {
       this.autoRead = !!autoInput.checked;
       localStorage.setItem('adam-voice-auto', this.autoRead ? '1' : '0');
+    }
+    if (loopInput) {
+      this.loop = !!loopInput.checked;
+      localStorage.setItem('adam-voice-loop', this.loop ? '1' : '0');
+    }
+    if (genderInput) {
+      this.gender = genderInput.value || 'any';
+      localStorage.setItem('adam-ai-gender', this.gender);
+    }
+    if (voiceInput) {
+      this.voiceUri = voiceInput.value || '';
+      localStorage.setItem('adam-ai-voice', this.voiceUri);
     }
     if (rateInput) {
       this.rate = Number(rateInput.value) || 0.92;
       localStorage.setItem('adam-voice-rate', String(this.rate));
     }
+    if (pitchInput) {
+      this.pitch = Number(pitchInput.value) || 1;
+      localStorage.setItem('adam-voice-pitch', String(this.pitch));
+    }
     this._syncToggle();
+    this._syncSliderLabels();
   }
 };
 

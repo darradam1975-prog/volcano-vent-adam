@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=63">
+  <link rel="stylesheet" href="css/styles.css?v=65">
 </head>
 <body class="share-page">
   <div class="app-shell share-shell">
@@ -79,11 +79,17 @@
     function renderMessage(role, text, source) {
       const el = document.createElement('div');
       el.className = `message ${role}`;
+      if (role === 'assistant') {
+        const who = document.createElement('div');
+        who.className = 'message-who';
+        who.textContent = 'Adam';
+        el.appendChild(who);
+      }
       const body = document.createElement('div');
       body.className = 'message-body';
       body.innerHTML = formatMarkdown(text);
       el.appendChild(body);
-      if (source && role === 'assistant') {
+      if (source && role === 'assistant' && !/Adam The Volcano Vent Bot/i.test(source)) {
         const meta = document.createElement('div');
         meta.className = 'message-meta';
         meta.textContent = source;

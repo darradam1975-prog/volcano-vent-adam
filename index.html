@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=64">
+  <link rel="stylesheet" href="css/styles.css?v=67">
 </head>
 <body>
   <div class="app-shell">
@@ -29,17 +29,17 @@
         <button class="icon-btn sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Open conversation history" title="Conversations">☰</button>
         <div class="brand-icon" aria-hidden="true">🌋</div>
         <div>
-          <h1>Adam The Volcano Vent Bot</h1>
-          <p class="tagline">Volcano Vent Dice · home rule guide</p>
+          <h1>Adam</h1>
+          <p class="tagline">Volcano Vent Dice</p>
         </div>
       </div>
       <div class="header-controls">
         <button class="icon-btn header-new-btn" id="header-new-conversation-btn" type="button" title="New conversation" aria-label="New conversation">+</button>
         <button class="icon-btn" id="share-conversation-btn" type="button" title="Share this chat — copy link for social" aria-label="Share conversation">🔗</button>
         <span class="age-badge guest" id="age-badge" title="Set birthday in Settings">Guest</span>
-        <button class="icon-btn" id="voice-toggle" type="button" title="Listen: off — tap to hear Adam The Volcano Vent Bot speak">
+        <button class="icon-btn" id="voice-toggle" type="button" title="AI off — tap to hear Adam speak" aria-label="AI off">
           <span class="voice-icon" aria-hidden="true">🔇</span>
-          <span class="voice-label">Listen off</span>
+          <span class="voice-label">AI</span>
         </button>
         <button class="icon-btn" id="settings-btn" type="button" title="Settings" aria-label="Settings">⚙️</button>
       </div>
@@ -78,24 +78,28 @@
           <div class="chat-scrollbar-thumb" id="chat-scrollbar-thumb"></div>
         </div>
       </div>
-      <div class="typing hidden" id="typing">Adam The Volcano Vent Bot is thinking…</div>
-      <div class="quick-chips">
-        <button class="quick-chip" type="button" data-prompt="Teach me">Teach me</button>
-        <button class="quick-chip" type="button" data-prompt="Full rules">Full rules</button>
-        <button class="quick-chip" type="button" data-prompt="How does scoring work?">Scoring</button>
-        <button class="quick-chip" type="button" data-prompt="What happens on a tie?">Ties</button>
-        <button class="quick-chip" type="button" data-prompt="How do beads work?">Beads</button>
-        <button class="quick-chip" type="button" data-prompt="How do buttons work?">Buttons</button>
-        <button class="quick-chip" type="button" data-prompt="House rules for pretend bets">House rules</button>
-        <button class="quick-chip" type="button" data-prompt="Why is it called the Vent?">Why the Vent?</button>
-      </div>
-      <div class="chat-input-row">
-        <input type="text" id="chat-input" placeholder="Ask Adam The Volcano Vent Bot about Volcano Vent Dice…" autocomplete="off" aria-label="Your message">
-        <button id="send-btn" type="button">Send</button>
+      <div class="typing hidden" id="typing">Adam is thinking…</div>
+      <div class="composer">
+        <div class="quick-chips" id="quick-chips">
+          <button class="quick-chip" type="button" data-prompt="Teach me">Teach me</button>
+          <button class="quick-chip" type="button" data-prompt="Full rules">Rules</button>
+          <button class="quick-chip" type="button" data-prompt="How does scoring work?">Scoring</button>
+          <button class="quick-chip" type="button" data-prompt="What happens on the Vent?">The Vent</button>
+          <button class="quick-chip" type="button" data-prompt="What is a lucky charm?">Lucky charm</button>
+          <button class="quick-chip" type="button" data-prompt="How do beads work?">Beads</button>
+        </div>
+        <p class="voice-status hidden" id="voice-status" role="status"></p>
+        <div class="chat-input-row">
+          <button id="voice-mic" type="button" title="Talk with AI" aria-label="Talk with AI" aria-pressed="false">
+            <span class="voice-mic-icon" aria-hidden="true">🎤</span>
+          </button>
+          <input type="text" id="chat-input" placeholder="Ask about the Vent, countdown, or lucky charm…" autocomplete="off" aria-label="Your message">
+          <button id="send-btn" type="button">Send</button>
+        </div>
       </div>
     </main>
 
-    <p class="footer-note">Chats are <strong>private by default</strong>. Tap <strong>🔗 Share</strong> only if you want a public link (like ChatGPT share) — anyone with the link can read that chat. Birthday stays on your device. Pretend bets require age 18+.</p>
+    <p class="footer-note">Private on this device. Share only if you want a public link. Pretend bets are 18+.</p>
     </div>
   </div>
 
@@ -213,16 +217,42 @@
           </div>
           <textarea id="sync-bundle-text" class="sync-bundle-text hidden" rows="4" placeholder="Paste sync bundle here, then tap Import bundle" spellcheck="false"></textarea>
         </section>
-        <section class="settings-section settings-voice">
-          <h3>Voice</h3>
-          <label>
+        <section class="settings-section settings-voice" id="ai-speech">
+          <h3>AI</h3>
+          <p class="settings-note">AI is how Adam speaks and listens. The list is every English voice installed on this device.</p>
+          <p class="settings-note hidden" id="ai-speech-unsupported">This browser cannot speak. Use Chrome or Edge.</p>
+          <label class="check-row">
             <input type="checkbox" id="voice-auto">
-            Read bot replies aloud (English)
+            AI speaks replies
+          </label>
+          <label class="check-row">
+            <input type="checkbox" id="voice-loop" checked>
+            After AI speaks, listen for your next line
+          </label>
+          <p class="settings-note">Tap the mic to talk. AI answers out loud, then listens again until you tap the mic to stop.</p>
+          <div id="ai-lang-picks" class="ai-lang-picks" aria-label="AI languages"></div>
+          <label>
+            Voice style
+            <select id="ai-gender">
+              <option value="any">Any installed voice</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
           </label>
           <label>
-            Speech speed
-            <input type="range" id="voice-rate" min="0.6" max="1.2" step="0.05" value="0.92">
+            Voice
+            <select id="ai-voice"></select>
           </label>
+          <label>
+            Speed <span id="voice-rate-val">0.92×</span>
+            <input type="range" id="voice-rate" min="0.6" max="1.4" step="0.05" value="0.92">
+          </label>
+          <label>
+            Pitch <span id="voice-pitch-val">1.00</span>
+            <input type="range" id="voice-pitch" min="0.6" max="1.4" step="0.05" value="1">
+          </label>
+          <button class="btn-secondary" id="ai-preview" type="button">Preview AI voice</button>
+          <p class="settings-note" id="ai-voice-count"></p>
         </section>
       </div>
       <div class="settings-footer">
@@ -232,18 +262,18 @@
     </div>
   </div>
 
-  <script src="js/cloud-config.js?v=64"></script>
-  <script src="js/site-config.js?v=64"></script>
-  <script src="js/rules.js?v=64"></script>
-  <script src="js/teach-flow.js?v=64"></script>
-  <script src="js/llm-settings.js?v=64"></script>
-  <script src="js/chat-scroll.js?v=64"></script>
-  <script src="js/conversations.js?v=64"></script>
-  <script src="js/age-verify.js?v=64"></script>
-  <script src="js/voice.js?v=64"></script>
-  <script src="js/llm.js?v=64"></script>
-  <script src="js/adam.js?v=64"></script>
-  <script src="js/share.js?v=64"></script>
-  <script src="js/app.js?v=64"></script>
+  <script src="js/cloud-config.js?v=65"></script>
+  <script src="js/site-config.js?v=65"></script>
+  <script src="js/rules.js?v=65"></script>
+  <script src="js/teach-flow.js?v=65"></script>
+  <script src="js/llm-settings.js?v=65"></script>
+  <script src="js/chat-scroll.js?v=65"></script>
+  <script src="js/conversations.js?v=65"></script>
+  <script src="js/age-verify.js?v=65"></script>
+  <script src="js/voice.js?v=67"></script>
+  <script src="js/llm.js?v=65"></script>
+  <script src="js/adam.js?v=65"></script>
+  <script src="js/share.js?v=65"></script>
+  <script src="js/app.js?v=65"></script>
 </body>
 </html>

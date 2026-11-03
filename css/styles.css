@@ -298,9 +298,16 @@ body.modal-open {
 }
 
 .brand h1 {
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.voice-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .tagline {
@@ -573,8 +580,19 @@ body.modal-open {
 }
 
 .message {
-  max-width: 92%;
+  max-width: min(40rem, 88%);
+  display: flex;
+  flex-direction: column;
   animation: fadeIn 0.25s ease;
+}
+
+.message-who {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ember);
+  margin: 0 0 4px 2px;
 }
 
 @keyframes fadeIn {
@@ -628,23 +646,54 @@ body.modal-open {
   display: none;
 }
 
-/* Quick chips */
+/* Composer */
+.composer {
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.22);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .quick-chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
-  padding: 0 16px 10px;
+  padding: 10px 12px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.quick-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-mode {
+  flex: 0 0 auto;
+  align-self: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ember);
 }
 
 .quick-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
   background: rgba(78, 205, 196, 0.12);
   border: 1px solid rgba(78, 205, 196, 0.3);
   color: var(--vent);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 0.78rem;
+  font-family: inherit;
   cursor: pointer;
   transition: background 0.15s;
+}
+
+.quick-chip-teach {
+  background: rgba(255, 179, 71, 0.1);
+  border-color: rgba(255, 179, 71, 0.35);
+  color: var(--ember);
 }
 
 .quick-chip:hover {
@@ -652,12 +701,54 @@ body.modal-open {
 }
 
 /* Input */
+.voice-status {
+  margin: 0;
+  padding: 8px 14px 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--vent);
+}
+
+.voice-status.hidden {
+  display: none;
+}
+
 .chat-input-row {
   display: flex;
   gap: 8px;
-  padding: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.2);
+  padding: 10px 12px 12px;
+  background: transparent;
+}
+
+#voice-mic {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#voice-mic.listening {
+  background: rgba(78, 205, 196, 0.2);
+  border-color: var(--vent);
+  color: var(--vent);
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+
+#voice-mic.speaking {
+  background: rgba(232, 93, 42, 0.22);
+  border-color: var(--lava-bright);
+  color: var(--ember);
+}
+
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(78, 205, 196, 0.45); }
+  50% { box-shadow: 0 0 0 7px rgba(78, 205, 196, 0); }
 }
 
 #chat-input {
@@ -864,6 +955,56 @@ body.modal-open {
   font-size: 0.88rem;
   margin-bottom: 10px;
   cursor: pointer;
+}
+
+.settings-voice label.check-row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.settings-voice select,
+.settings-voice input[type="range"] {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.settings-voice input[type="range"] {
+  padding: 0;
+}
+
+.ai-lang-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.ai-lang-pick {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ai-lang-pick.active {
+  background: rgba(78, 205, 196, 0.16);
+  border-color: var(--vent);
+  color: var(--vent);
+}
+
+#ai-preview {
+  margin-top: 4px;
 }
 
 .settings-llm label:has(input[type="checkbox"]) {
@@ -1097,7 +1238,7 @@ body.modal-open {
   text-align: center;
   font-size: 0.72rem;
   color: var(--text-muted);
-  padding: 8px;
+  padding: 2px 8px 0;
 }
 
 @media (max-width: 860px) {
@@ -1223,7 +1364,7 @@ body.modal-open {
 
   .quick-chips {
     flex-shrink: 0;
-    padding: 0 12px 8px;
+    padding: 8px 10px 0;
     gap: 6px;
   }
 
@@ -1267,10 +1408,6 @@ body.modal-open {
     gap: 6px;
   }
 
-  .voice-label {
-    display: none;
-  }
-
   .age-badge {
     font-size: 0.62rem;
     padding: 3px 8px;
@@ -1282,24 +1419,8 @@ body.modal-open {
 }
 
 @media (min-width: 861px) {
-  .rules-card {
-    padding: 14px 16px;
-  }
-
-  .rules-card-summary {
-    display: none;
-  }
-
-  .rules-card-body {
-    padding: 0;
-  }
-
   .rules-card-title-desktop {
-    display: block;
-    font-size: 0.9rem;
-    color: var(--vent);
-    margin-bottom: 8px;
-    font-weight: 700;
+    display: none;
   }
 }
 

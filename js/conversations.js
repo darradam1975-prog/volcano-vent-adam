@@ -281,6 +281,7 @@ const adamConversations = {
     if (typeof adamChatScroll !== 'undefined') {
       adamChatScroll.scrollToLatest({ force: true });
     }
+    if (typeof renderPromptChips === 'function') renderPromptChips();
   },
 
   renderList() {

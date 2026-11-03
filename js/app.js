@@ -9,15 +9,24 @@ function renderChatMessage(role, text, source, { persist = true, skipScroll = fa
 
   const el = document.createElement('div');
   el.className = `message ${role}`;
+
+  if (role === 'assistant') {
+    const who = document.createElement('div');
+    who.className = 'message-who';
+    who.textContent = 'Adam';
+    el.appendChild(who);
+  }
+
   const body = document.createElement('div');
   body.className = 'message-body';
   body.innerHTML = formatMarkdown(text);
   el.appendChild(body);
 
-  if (source && role === 'assistant') {
+  const note = messageSourceNote(source);
+  if (note && role === 'assistant') {
     const meta = document.createElement('div');
     meta.className = 'message-meta';
-    meta.textContent = source;
+    meta.textContent = note;
     el.appendChild(meta);
   }
 
@@ -43,6 +52,58 @@ function renderChatMessage(role, text, source, { persist = true, skipScroll = fa
   if (role === 'assistant' && persist) {
     adamVoice.speak(text);
   }
+}
+
+function messageSourceNote(source) {
+  const s = String(source || '');
+  if (!s) return '';
+  if (/gpt/i.test(s) && !/Adam The Volcano Vent Bot/i.test(s)) return s;
+  return '';
+}
+
+const ADAM_DEFAULT_PROMPTS = [
+  ['Teach me', 'Teach me'],
+  ['Rules', 'Full rules'],
+  ['Scoring', 'How does scoring work?'],
+  ['The Vent', 'What happens on the Vent?'],
+  ['Lucky charm', 'What is a lucky charm?'],
+  ['Beads', 'How do beads work?']
+];
+
+function renderPromptChips() {
+  const row = document.getElementById('quick-chips');
+  if (!row) return;
+  const teaching = typeof adam !== 'undefined' && adam.teachMode;
+  const items = teaching && typeof VOLCANO_VENT_TEACH !== 'undefined'
+    ? [
+      ['Stop', 'stop teach'],
+      ...VOLCANO_VENT_TEACH.categories.map(c => [c.label, c.starters[0]])
+    ]
+    : ADAM_DEFAULT_PROMPTS;
+
+  row.replaceChildren();
+  if (teaching) {
+    const mode = document.createElement('span');
+    mode.className = 'chip-mode';
+    mode.textContent = 'Teach';
+    row.appendChild(mode);
+  }
+  items.forEach(([label, prompt]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = teaching ? 'quick-chip quick-chip-teach' : 'quick-chip';
+    btn.dataset.prompt = prompt;
+    btn.textContent = label;
+    btn.addEventListener('click', () => askPrompt(prompt));
+    row.appendChild(btn);
+  });
+}
+
+function askPrompt(prompt) {
+  const input = document.getElementById('chat-input');
+  if (!input || !prompt) return;
+  input.value = prompt;
+  sendMessage();
 }
 
 function addMessage(role, text, source) {
@@ -84,6 +145,7 @@ async function sendMessage() {
     if (typing) typing.classList.add('hidden');
     addMessage('assistant', adam.respond(text), ADAM_SOURCE);
   }
+  renderPromptChips();
 }
 
 function openSettings() {
@@ -176,15 +238,7 @@ function initApp() {
     if (e.target.id === 'settings-modal') closeSettings();
   });
 
-  document.querySelectorAll('.quick-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const input = document.getElementById('chat-input');
-      if (input) {
-        input.value = chip.dataset.prompt || chip.textContent;
-        sendMessage();
-      }
-    });
-  });
+  renderPromptChips();
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
