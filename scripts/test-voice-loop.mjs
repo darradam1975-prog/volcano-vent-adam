@@ -59,6 +59,10 @@ class FakeRecognition {
 globalThis.webkitSpeechRecognition = FakeRecognition;
 
 const sent = [];
+const drafts = [];
+globalThis.showVoiceDraft = (text) => {
+  drafts.push(String(text || ''));
+};
 globalThis.sendMessage = () => {
   sent.push(input.value);
   adamVoice.speak('The Vent is the rim.');
@@ -109,6 +113,19 @@ const beforeStop = starts;
 adamVoice.stopTalk();
 await new Promise(resolve => setTimeout(resolve, 30));
 check('stop closes the mic', starts === beforeStop && adamVoice._phase === 'idle' && adamVoice._session === false);
+
+adamVoice.loop = true;
+adamVoice.startTalk();
+const sentBeforeLive = sent.length;
+adamVoice._recognition.onresult({
+  resultIndex: 0,
+  results: [{ 0: { transcript: 'hello from the mic' }, isFinal: false, length: 1 }]
+});
+check('live voice line shows on the chat', drafts.at(-1) === 'hello from the mic');
+check('live voice line waits for the pause', sent.length === sentBeforeLive);
+adamVoice._onListenEnd();
+check('paused voice line is posted to the chat', sent.at(-1) === 'hello from the mic');
+adamVoice.stopTalk();
 
 clearTimeout(adamVoice._voiceWatch);
 adamVoice.voices = [

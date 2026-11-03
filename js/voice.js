@@ -393,6 +393,30 @@ const adamVoice = {
     return rec;
   },
 
+  _pendingLine() {
+    const fromInput = document.getElementById('chat-input')?.value?.trim() || '';
+    if (fromInput) return fromInput;
+    return document.getElementById('voice-draft')?.textContent?.trim() || '';
+  },
+
+  _showOnChat(text) {
+    if (typeof showVoiceDraft === 'function') showVoiceDraft(text);
+  },
+
+  _commitHeard(text) {
+    const line = String(text || '').trim();
+    if (!line || this._sentThisListen) return;
+    this._sentThisListen = true;
+    this._phase = 'thinking';
+    if (!this.loop) this._session = false;
+    const input = document.getElementById('chat-input');
+    if (input) input.value = line;
+    this._showOnChat(line);
+    this._syncMic();
+    try { this._recognition?.stop(); } catch { /* already stopped */ }
+    if (typeof sendMessage === 'function') sendMessage();
+  },
+
   _onHeard(event) {
     if (this._phase === 'speaking') return;
     let finalText = '';
@@ -402,17 +426,13 @@ const adamVoice = {
       if (event.results[i].isFinal) finalText += piece;
       else interim += piece;
     }
-    const input = document.getElementById('chat-input');
     const shown = (finalText || interim).trim();
+    const input = document.getElementById('chat-input');
     if (input && shown) input.value = shown;
+    if (shown) this._showOnChat(shown);
     const heard = finalText.trim();
     if (!heard || this._sentThisListen) return;
-    this._sentThisListen = true;
-    this._phase = 'thinking';
-    if (!this.loop) this._session = false;
-    this._syncMic();
-    try { this._recognition?.stop(); } catch { /* already stopped */ }
-    if (typeof sendMessage === 'function') sendMessage();
+    this._commitHeard(heard);
   },
 
   _onListenError(event) {
@@ -439,6 +459,13 @@ const adamVoice = {
 
   _onListenEnd() {
     this.listening = false;
+    if (this._phase === 'listening') {
+      const pending = this._pendingLine();
+      if (pending && !this._sentThisListen) {
+        this._commitHeard(pending);
+        return;
+      }
+    }
     if (!this._session || this._phase === 'thinking' || this._phase === 'speaking') {
       this._syncMic();
       return;
@@ -501,6 +528,7 @@ const adamVoice = {
     try { this._recognition?.abort?.(); } catch { /* ignore */ }
     try { this._recognition?.stop(); } catch { /* ignore */ }
     this.listening = false;
+    this._showOnChat('');
     this._syncMic();
   },
 

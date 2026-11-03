@@ -110,9 +110,40 @@ function addMessage(role, text, source) {
   renderChatMessage(role, text, source, { persist: true });
 }
 
+function showVoiceDraft(text) {
+  const chat = document.getElementById('chat');
+  if (!chat) return;
+  const clean = String(text || '').trim();
+  let el = document.getElementById('voice-draft');
+  if (!clean) {
+    el?.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'voice-draft';
+    el.className = 'message user voice-draft';
+    const body = document.createElement('div');
+    body.className = 'message-body';
+    el.appendChild(body);
+    const anchor = document.getElementById('chat-scroll-anchor');
+    if (anchor) chat.insertBefore(el, anchor);
+    else chat.appendChild(el);
+  }
+  const body = el.querySelector('.message-body');
+  if (body) body.textContent = clean;
+  if (typeof adamChatScroll !== 'undefined') adamChatScroll.scrollToLatest({ force: true });
+}
+
+function clearVoiceDraft() {
+  document.getElementById('voice-draft')?.remove();
+}
+
 if (typeof window !== 'undefined') {
   window.renderChatMessage = renderChatMessage;
   window.chatHistory = chatHistory;
+  window.showVoiceDraft = showVoiceDraft;
+  window.clearVoiceDraft = clearVoiceDraft;
 }
 
 function formatMarkdown(text) {
@@ -129,8 +160,13 @@ async function sendMessage() {
   const text = input?.value?.trim();
   if (!text) return;
 
+  const fromVoice = typeof adamVoice !== 'undefined'
+    && (adamVoice._session || adamVoice._phase === 'thinking' || adamVoice._phase === 'speaking');
+
   input.value = '';
+  clearVoiceDraft();
   addMessage('user', text);
+  if (fromVoice && typeof adamChatScroll !== 'undefined') adamChatScroll.scrollToLatest({ force: true });
 
   const typing = document.getElementById('typing');
   if (typing) typing.classList.remove('hidden');
@@ -145,6 +181,7 @@ async function sendMessage() {
     if (typing) typing.classList.add('hidden');
     addMessage('assistant', adam.respond(text), ADAM_SOURCE);
   }
+  if (fromVoice && typeof adamChatScroll !== 'undefined') adamChatScroll.scrollToLatest({ force: true });
   renderPromptChips();
 }
 
