@@ -118,7 +118,8 @@ const adam = {
     const m = String(message || '').toLowerCase().trim();
     if (!m || m.length < 4) return false;
     if (this._isGreeting(m) || this._isThanks(m) || this._isBareAffirmative(m)
-      || this._isDeclineContinuation(m) || this._isAffirmativeContinuation(m)) {
+      || this._isDeclineContinuation(m) || this._isAffirmativeContinuation(m)
+      || this._isTableReaction(m)) {
       return false;
     }
     if (this._isStartTeach(m) || this._isQuoteRulesRequest(m) || this._isRulebookSourceQuestion(m)) {
@@ -409,6 +410,7 @@ const adam = {
     if (this._isWalkthroughContinue(m)) return this._walkthrough({ continue: true });
     if (this._isAffirmativeContinuation(m)) return this._affirmativeContinuation(m);
     if (this._isBareAffirmative(m)) return this._yesClarify();
+    if (this._isTableReaction(m)) return this._tableReaction(m);
     if (this._isAcknowledgment(m)) return this._acknowledgment();
     if (/stop\s+teach|exit\s+teach|end\s+teach|leave\s+teach/.test(m)) {
       this.teachMode = false;
@@ -499,15 +501,65 @@ const adam = {
   },
 
   _isThanks(m) {
-    if (/^no\s+thanks/i.test(String(m || '').trim())) return false;
-    if (/(?:thanks|thank\s+you|thx|ty|cheers|appreciate\s+it|much\s+appreciated)/.test(m)) {
-      return m.length < 80 || /^(?:thanks|thank\s+you|thx|ty|cheers)/.test(m);
+    const t = String(m || '').trim();
+    if (/^no\s+thank/i.test(t)) return false;
+    const thanksWord = /(?:thanks|thank\s*you|thankyou|thanky|thank\s*ya|thank\s*ye|thx|\bty\b|cheers|appreciate\s+it|much\s+appreciated)/i;
+    if (!thanksWord.test(t)) return false;
+    if (/\?/.test(t) && !/^(?:thanks|thank\s*you|thankyou|thanky|thank\s*ya|thank\s*ye|thx|ty|cheers)[?!.,\s]*$/i.test(t)) {
+      return false;
     }
-    return false;
+    return t.length < 80 || /^(?:thanks|thank\s*you|thankyou|thanky|thank\s*ya|thank\s*ye|thx|ty|cheers)/i.test(t);
+  },
+
+  _normalizeReaction(m) {
+    return String(m || '')
+      .toLowerCase()
+      .replace(/[!?.…,~'"’]+/g, ' ')
+      .replace(/\bl\s+o\s+l\b/g, 'lol')
+      .replace(/\bo\s+m\s+g\b/g, 'omg')
+      .replace(/\boh\s+em\s+gee\b/g, 'omg')
+      .replace(/\s+/g, ' ')
+      .trim();
+  },
+
+  _isTableReaction(m) {
+    return !!this._tableReactionKind(m);
+  },
+
+  _tableReactionKind(m) {
+    const t = String(m || '').trim();
+    if (!t || t.length > 40 || /\?/.test(t)) return '';
+    const norm = this._normalizeReaction(t);
+    if (!/^(?:lol+|omg|oh\s+my\s+god|oh\s+my\s+gosh)\b/.test(norm)) return '';
+    const rest = norm.replace(/^(?:(?:lol+|omg|oh\s+my\s+god|oh\s+my\s+gosh)\s+)+/, '').trim();
+    const filler = /^(?:(?:lol+|omg|oh\s+my\s+god|oh\s+my\s+gosh|yeah|yes|yep|yup|wow|whoa|nice|cool|ok|okay|haha|ha|so|true|right|same|wild|crazy)(?:\s+|$))*$/;
+    if (rest && !filler.test(rest)) return '';
+    return /\blol+\b/.test(norm) ? 'laugh' : 'wow';
+  },
+
+  _tableReaction(message) {
+    const kind = this._tableReactionKind(message);
+    const topic = this._activeTopic();
+    const label = this._topicLabel(topic);
+    const laugh = kind === 'laugh';
+    if (topic === 'betting') {
+      const line = laugh
+        ? 'Ha — I am right there with you.'
+        : 'I know — it catches people.';
+      return `${line} Still on **pretend bets**. Say **"tell me more"** or **"what about keeper?"** when you want the next bit.`;
+    }
+    if (topic && topic !== 'general') {
+      const line = laugh ? 'Ha — yeah.' : 'Right?';
+      return `${line} We are still on ${label}. Say **"what happens next?"** if you want the next step.`;
+    }
+    const line = laugh
+      ? 'Ha — I am with you.'
+      : 'I know — it is a lot the first time.';
+    return `${line} Ask **"how do I play?"**, **"what happens next?"**, or anything about the countdown, the **Vent**, or a lucky charm.`;
   },
 
   _isAcknowledgment(m) {
-    if (this._isThanks(m) || this._isWhatNext(m) || this._isGreeting(m)) return false;
+    if (this._isThanks(m) || this._isWhatNext(m) || this._isGreeting(m) || this._isTableReaction(m)) return false;
     if (this._isBareAffirmative(m)) return false;
     return /^(?:got\s+it|gotcha|okay|ok|k|cool|great|nice|perfect|awesome|helpful|useful|makes\s+sense|understood|i\s+see|alright|all\s+right|fair\s+enough|good\s+to\s+know|noted)(?:\s|!|\?|\.|$)/.test(m)
       || /^(?:that\s+)?(?:helps|makes\s+sense|clears?\s+it\s+up)(?:\s|!|\.|$)/.test(m);
@@ -663,7 +715,7 @@ const adam = {
     const t = String(m || '').trim().toLowerCase();
     if (!this._lastAssistantOfferedContinuation()) return false;
     return /^(?:no|nah|nope|not\s+now|skip|i'?m\s+good|no\s+thanks|maybe\s+later|that'?s\s+ok|all\s+good)(?:\s|!|\.|$)/.test(t)
-      || /^no\s+(?:thanks|thank\s+you)/.test(t);
+      || /^no\s+(?:thanks|thank\s*you|thankyou|thanky|thank\s*ya|thank\s*ye)/.test(t);
   },
 
   _declineContinuation() {

@@ -413,5 +413,46 @@ check('tell me more stays on that rule', /rescue|token|Vent/i.test(stayed) && !/
 const switched = adam.respond('tell me about the lucky charm');
 check('a new rule gets a friendly pivot', /we can leave/i.test(switched) && /lucky charm/i.test(switched));
 
+adam.conversationHistory = [
+  { role: 'user', content: 'what happens on the vent?' },
+  { role: 'assistant', content: 'The Vent is the rim. A rescue roll uses the same dice. A lucky charm on that roll saves you.' }
+];
+adam.lastTopic = 'vent';
+const thanky = adam.respond('thanky');
+check('thanky stays on the vent', /welcome/i.test(thanky) && /vent/i.test(thanky) && !/Here is the ruling|rough guide|Turn flow/i.test(thanky));
+const thanked = adam.respond('thank you!');
+check('thank you stays in the chat', /welcome/i.test(thanked) && /vent/i.test(thanked) && !/Here is the ruling|rough guide/i.test(thanked));
+const laughed = adam.respond('lol');
+check('lol keeps the conversation going', /Ha —/i.test(laughed) && /vent/i.test(laughed) && /what happens next/i.test(laughed) && !/Here is the ruling|rough guide|we can leave/i.test(laughed));
+const surprised = adam.respond('OMG!');
+check('omg keeps the conversation going', /Right\?/i.test(surprised) && /vent/i.test(surprised) && !/Here is the ruling|rough guide|we can leave/i.test(surprised));
+check('thanky is not off topic', !adam._isLikelyOffTopic('thanky'));
+check('lol is not off topic', !adam._isLikelyOffTopic('lol!'));
+check('oh my god is not off topic', !adam._isLikelyOffTopic('oh my god'));
+check('short reactions skip gpt polish', !adamLlm.shouldEnhance('thanky', thanky) && !adamLlm.shouldEnhance('lol', laughed) && !adamLlm.shouldEnhance('omg', surprised));
+check('prompts treat short reactions as table talk', /thanky/.test(adamLlm.buildSystemPrompt()) && /lol, or omg/.test(adamLlm.buildSystemPrompt()) && /thanky/.test(adamLlm.buildOffTopicSystemPrompt()));
+
+adam.conversationHistory = [];
+adam.lastTopic = 'general';
+const lolVent = adam.respond('lol what happens on the vent');
+check('lol before a vent question still answers the vent', /rescue|Vent/i.test(lolVent) && !/^Ha —/.test(lolVent));
+
+adam.conversationHistory = [
+  { role: 'user', content: 'how do beads work' },
+  { role: 'assistant', content: 'Want a mini example?' }
+];
+check('no thank you still declines', /no worries|another|teach menu/i.test(adam.respond('no thank you')));
+adam.conversationHistory = [
+  { role: 'user', content: 'how do beads work' },
+  { role: 'assistant', content: 'Want a mini example?' }
+];
+check('no thanky still declines', /no worries|another|teach menu/i.test(adam.respond('no thanky')));
+
+adam.conversationHistory = [];
+adam.lastTopic = 'general';
+adam.respond('house rules for pretend bets');
+const betLaugh = adam.respond('lol');
+check('lol on pretend bets stays there', /pretend bets/i.test(betLaugh) && /tell me more|keeper/i.test(betLaugh) && !/Here is the ruling|rough guide/i.test(betLaugh));
+
 console.log('\nPassed', ok, '/', total);
 process.exit(ok === total ? 0 : 1);
