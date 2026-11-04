@@ -256,6 +256,7 @@ export async function handleAuth(request, env) {
   try {
     const action = String(body.action || '');
     if (action === 'google') return await onGoogle(env, body);
+    if (action === 'register') return await onRegister(env, body);
     if (action === 'login') return await onLogin(env, body);
     if (action === 'set-password') return await onSetPassword(env, body);
     if (action === 'session') return await onSession(env, body);
@@ -300,6 +301,45 @@ async function onGoogle(env, body) {
     user.syncId = pickSyncId(user.syncId, body.syncId);
     user.updatedAt = now;
   }
+  await writeUser(env.ADAM_KV, user);
+  const session = await createSession(env.ADAM_KV, user.email);
+  return jsonResponse({ ok: true, session: session.token, user: publicUser(user) }, 200, METHODS);
+}
+
+function nameFromEmail(email) {
+  const local = email.split('@')[0].replace(/[^a-z0-9]+/gi, ' ').trim();
+  return (local || email).slice(0, 40);
+}
+
+async function onRegister(env, body) {
+  const email = normalizeEmail(body.email);
+  if (!email) return jsonResponse({ error: 'Type a real email.' }, 400, METHODS);
+  const err = passwordError(body.password);
+  if (err) return jsonResponse({ error: err }, 400, METHODS);
+  const existing = await readUser(env.ADAM_KV, email);
+  if (existing?.passwordHash) {
+    return jsonResponse({ error: 'That email already has an account. Tap Sign in.' }, 409, METHODS);
+  }
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  const now = Date.now();
+  const user = existing || {
+    email,
+    name: nameFromEmail(email),
+    googleSub: '',
+    passwordHash: '',
+    passwordSalt: '',
+    passwordIterations: 0,
+    syncId: pickSyncId('', body.syncId),
+    createdAt: now,
+    updatedAt: now
+  };
+  user.name = user.name || nameFromEmail(email);
+  user.passwordSalt = bytesToB64(salt);
+  user.passwordIterations = PBKDF2_ITERATIONS;
+  user.passwordHash = await hashPassword(body.password, salt, PBKDF2_ITERATIONS);
+  user.syncId = pickSyncId(user.syncId, body.syncId);
+  user.updatedAt = now;
   await writeUser(env.ADAM_KV, user);
   const session = await createSession(env.ADAM_KV, user.email);
   return jsonResponse({ ok: true, session: session.token, user: publicUser(user) }, 200, METHODS);

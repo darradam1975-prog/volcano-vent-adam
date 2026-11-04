@@ -1,5 +1,5 @@
 /**
- * Account panel — Sign in with Google, then set a password.
+ * Account panel — email and password. No Google client ID.
  * The session token stays on this device. The password is hashed in the cloud.
  */
 const ADAM_ACCOUNT_SESSION = 'adam-account-session';
@@ -54,12 +54,15 @@ const adamAccount = {
       if (typeof openSettings === 'function') openSettings();
       document.getElementById('account-section')?.scrollIntoView({ block: 'start' });
     });
-    document.getElementById('account-save-client')?.addEventListener('click', () => this.saveClientId());
+    document.getElementById('account-create')?.addEventListener('click', () => this.createAccount());
     document.getElementById('account-password-signin')?.addEventListener('click', () => this.signInWithPassword());
     document.getElementById('account-save-password')?.addEventListener('click', () => this.setPassword());
     document.getElementById('account-sign-out')?.addEventListener('click', () => this.signOut());
     document.getElementById('account-password')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') this.signInWithPassword();
+    });
+    document.getElementById('account-confirm')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') this.createAccount();
     });
     document.getElementById('account-confirm-password')?.addEventListener('keydown', e => {
       if (e.key === 'Enter') this.setPassword();
@@ -140,6 +143,34 @@ const adamAccount = {
     }
   },
 
+  async createAccount() {
+    this.setError('');
+    const email = document.getElementById('account-email')?.value || '';
+    const password = document.getElementById('account-password')?.value || '';
+    const confirm = document.getElementById('account-confirm')?.value || '';
+    if (password !== confirm) {
+      this.setError('Type the same password in both boxes.');
+      return;
+    }
+    this.setStatus('Creating your account…');
+    try {
+      const data = await this.post({
+        action: 'register',
+        email,
+        password,
+        syncId: typeof adamConversations !== 'undefined' ? adamConversations.getSyncId() : ''
+      });
+      ['account-password', 'account-confirm'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      this.remember(data);
+      this.setStatus('You are signed in.');
+    } catch (e) {
+      this.setError(e.message || 'Could not create the account.');
+    }
+  },
+
   async signInWithPassword() {
     this.setError('');
     const email = document.getElementById('account-email')?.value || '';
@@ -184,7 +215,7 @@ const adamAccount = {
       });
       this.user = data.user || this.user;
       this.render();
-      this.setStatus('Password saved. You can sign in with Google or this password.');
+      this.setStatus('Password saved.');
     } catch (e) {
       this.setError(e.message || 'Could not save the password.');
     }
@@ -273,13 +304,8 @@ const adamAccount = {
         ? String(this.user.name || this.user.email || 'Account').split(' ')[0].slice(0, 12)
         : 'Sign in';
       btn.textContent = label;
-      btn.title = signedIn ? `Signed in as ${this.user.email}` : 'Sign in with Google or a password';
+      btn.title = signedIn ? `Signed in as ${this.user.email}` : 'Sign in';
     }
-    const clientField = document.getElementById('account-google-client');
-    if (clientField && !clientField.value) clientField.value = this.clientId();
-    const setup = document.getElementById('account-google-setup');
-    if (setup) setup.classList.toggle('hidden', !!this.clientId() || signedIn);
-    if (!signedIn) this.renderGoogle();
   },
 
   setStatus(text) {

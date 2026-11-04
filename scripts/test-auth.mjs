@@ -128,6 +128,19 @@ const setPw = await handleAuth(post({
 check('a signed-in player can change the password', setPw.status === 200 && (await setPw.json()).user.hasPassword === true);
 const relog = await handleAuth(post({ action: 'login', email, password: 'new-table-8' }), env);
 check('the new password signs in', relog.status === 200);
+const created = await handleAuth(post({
+  action: 'register',
+  email: 'newplayer@example.com',
+  password: 'table-pass-8'
+}), env);
+const createdBody = await created.json();
+check('a new email and password creates an account', created.status === 200 && createdBody.user.hasPassword === true && createdBody.session);
+const duplicate = await handleAuth(post({
+  action: 'register',
+  email: 'newplayer@example.com',
+  password: 'table-pass-8'
+}), env);
+check('the same email cannot register twice', duplicate.status === 409);
 
 console.log(`\nPassed ${passed} / ${passed + failed}`);
 if (failed) process.exit(1);

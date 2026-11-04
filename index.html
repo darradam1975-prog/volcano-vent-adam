@@ -41,7 +41,7 @@
           <span class="voice-icon" aria-hidden="true">🔇</span>
           <span class="voice-label">AI</span>
         </button>
-        <button class="account-btn" id="account-btn" type="button" title="Sign in with Google or a password">Sign in</button>
+        <button class="account-btn" id="account-btn" type="button" title="Sign in">Sign in</button>
         <button class="icon-btn" id="settings-btn" type="button" title="Settings" aria-label="Settings">⚙️</button>
       </div>
     </header>
@@ -158,33 +158,26 @@
       <div class="modal-body">
         <section class="settings-section settings-account" id="account-section">
           <h3>Account</h3>
-          <p id="account-status">Sign in with Google, then set a password for this account.</p>
+          <p id="account-status">Type your email and a password.</p>
           <p class="settings-error hidden" id="account-error"></p>
           <div id="account-signed-out">
-            <div id="google-signin-btn" class="google-signin-btn"></div>
-            <div id="account-google-setup">
-              <p class="settings-note">Create a Google Cloud OAuth client of type Web. Add JavaScript origins https://volcano-vent.com and https://darradam1975-prog.github.io. Paste the client ID here.</p>
-              <label>
-                Google client ID
-                <input type="text" id="account-google-client" placeholder="….apps.googleusercontent.com" autocomplete="off" spellcheck="false">
-              </label>
-              <div class="modal-actions">
-                <button class="btn-secondary" id="account-save-client" type="button">Save Google client ID</button>
-              </div>
-            </div>
-            <p class="account-or">or</p>
             <label>
               Email
               <input type="email" id="account-email" autocomplete="username" spellcheck="false">
             </label>
             <label>
               Password
-              <input type="password" id="account-password" autocomplete="current-password">
+              <input type="password" id="account-password" autocomplete="new-password">
+            </label>
+            <label>
+              Type the password again
+              <input type="password" id="account-confirm" autocomplete="new-password">
             </label>
             <div class="modal-actions">
-              <button class="btn-primary" id="account-password-signin" type="button">Sign in with password</button>
+              <button class="btn-primary" id="account-create" type="button">Create account</button>
+              <button class="btn-secondary" id="account-password-signin" type="button">Sign in</button>
             </div>
-            <p class="settings-note">Password sign-in works after you sign in with Google once and set a password. The cloud stores a hash of the password.</p>
+            <p class="settings-note">Use the same email and password on your phone and your computer. The password is saved as a hash.</p>
           </div>
           <div id="account-signed-in" class="hidden">
             <p id="account-who"></p>
@@ -329,7 +322,7 @@
   <script src="js/llm.js?v=84"></script>
   <script src="js/adam.js?v=84"></script>
   <script src="js/share.js?v=65"></script>
-  <script src="js/account.js?v=86"></script>
+  <script src="js/account.js?v=87"></script>
   <script src="js/app.js?v=85"></script>
 </body>
 </html>
