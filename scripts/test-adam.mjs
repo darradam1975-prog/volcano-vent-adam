@@ -484,6 +484,18 @@ check('a vent question is not a political debate', /rescue|Vent/i.test(stillVent
 check('headlines are not a rule sheet', !/Here is the ruling|pro-America/i.test(adam.respond('what is in the news')));
 
 adam.conversationHistory = [];
+adam.lastTopic = 'general';
+const candy = adam.respond('what kosher candy brands are good');
+check('kosher candy names brands', /Paskesz/.test(candy) && /Sour Patch Kids/.test(candy) && /Swedish Fish/.test(candy));
+check('kosher candy reads the bag', /symbol on that bag/.test(candy) && /OU/.test(candy) && /Jelly Belly/.test(candy));
+check('kosher candy is not a rule sheet', !/Here is the ruling|rough guide/.test(candy));
+const candyBrands = adam.respond('what brands are good');
+check('candy follow-up stays on brands', /Paskesz/.test(candyBrands) && !/Here is the ruling/.test(candyBrands));
+check('tell me more stays on the candy bowl', /symbol on that bag/.test(adam.respond('tell me more')));
+check('a vent question still beats the candy bowl', /rescue|Vent/i.test(adam.respond('what happens on the vent?')) && !/Paskesz/.test(adam.respond('what happens on the vent?')));
+check('kosher candy prompt checks the symbol', /kosher candy/.test(adamLlm.buildOffTopicSystemPrompt()) && /Do not invent a certification/.test(adamLlm.buildOffTopicSystemPrompt()));
+
+adam.conversationHistory = [];
 adam.topicMemory = [];
 adam.lastTopic = 'general';
 adam.lastPoliticsIssue = '';

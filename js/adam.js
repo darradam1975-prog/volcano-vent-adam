@@ -54,7 +54,7 @@ const adam = {
     if (typeof adamLlm !== 'undefined' && adamLlm.isEnabled()) {
       const roughGuide = /^I'm a \*\*rough guide\*\*/.test(reply);
       const offTopic = this._isLikelyOffTopic(clean);
-      const keepLocal = this._isMemoryAsk(clean) || /\b(?:do you remember|remind me)\b/i.test(clean) || this._isPolitics(clean);
+      const keepLocal = this._isMemoryAsk(clean) || /\b(?:do you remember|remind me)\b/i.test(clean) || this._isPolitics(clean) || this._isKosherCandy(clean) || this._isCandyFollowUp(clean);
       if (keepLocal) {
         // Memory search and the pro-America debate stay in Adam's own words.
       } else if (/lucky\s*charm/i.test(clean) && !roughGuide) {
@@ -177,6 +177,8 @@ const adam = {
       this.lastTopic = 'politics';
       const issue = this._politicsIssue(userMessage);
       if (issue) this.lastPoliticsIssue = issue;
+    } else if (this._isKosherCandy(userMessage) || this._isCandyFollowUp(userMessage)) {
+      this.lastTopic = 'candy';
     } else {
       const inferred = this._inferTopicFromText(assistantReply);
       this.lastTopic = inferred || this.lastTopic;
@@ -433,6 +435,7 @@ const adam = {
     if (remembered) return remembered;
     if (this._offTopicLane(m) === 'help') return this._offTopicPersonality(message);
     if (this._isPolitics(m)) return this._politics(m);
+    if (this._isKosherCandy(m) || this._isCandyFollowUp(m)) return this._kosherCandy(m);
     if (/stop\s+teach|exit\s+teach|end\s+teach|leave\s+teach/.test(m)) {
       this.teachMode = false;
       return 'Teach mode off — ask anything in plain English, or say **"teach me"** to start again.';
@@ -838,6 +841,7 @@ const adam = {
       lucky_charm: 'lucky charms',
       betting: 'pretend bets',
       politics: 'a pro-America debate',
+      candy: 'kosher candy',
       tokens: 'tokens',
       setup: 'setup',
       overview: 'how to play',
@@ -875,6 +879,7 @@ const adam = {
     if (topic === 'politics' || this.lastTopic === 'politics') {
       return this._politics(this.lastPoliticsIssue || 'general', { more: true });
     }
+    if (this.lastTopic === 'candy') return this._kosherCandy(userCtx || 'brands');
 
     if (topic === 'rolling_six' || /roll.*six|multiple six/.test(userCtx)) {
       return '**After paying tribute 6 with a six:** set **one** six aside, pass the rest. Next player rolls for **5**. Extra sixes in that roll stay in the passing pool — only the dice used for the tribute get set aside.';
@@ -2086,6 +2091,9 @@ const adam = {
     if (named) {
       found.push({ topic: named, label: String(this._topicLabel(named) || named).replace(/\*\*/g, '') });
     }
+    if (this._isKosherCandy(text)) {
+      found.push({ topic: 'candy', label: 'kosher candy' });
+    }
     const issue = this._politicsIssue(text);
     if (issue) {
       const card = this._politicsCards()[issue];
@@ -2184,6 +2192,27 @@ const adam = {
     const t = String(m || '').toLowerCase();
     if (/\b(?:pot|wager|stake|chips?|split|all[\s-]?in|who\s+pays|how\s+much|the winner|bowl|vote)\b/.test(t)) return true;
     return t.length < 24 && !/\?/.test(t);
+  },
+
+  _isKosherCandy(message) {
+    const m = String(message || '').toLowerCase();
+    if (/\b(?:sour patch|swedish fish|jelly belly|paskesz|fruit gems?)\b/.test(m)) return true;
+    if (!/\b(?:kosher|hechsher|pareve|pesach)\b/.test(m)) return false;
+    return /\b(?:candy|candies|chocolate|sweet|gumm\w*|snack|treat|brand|jelly|sour)\b/.test(m);
+  },
+
+  _isCandyFollowUp(message) {
+    if (this.lastTopic !== 'candy') return false;
+    const m = String(message || '').toLowerCase().trim();
+    if (!m || m.length > 90 || /\?/.test(m) && m.length > 70) return false;
+    if (this._looksLikeRulesQuestion(m) || this._isMemoryAsk(m) || this._isPolitics(m)) return false;
+    return /\b(?:brand|brands|which|recommend|good ones|pareve|passover|dairy|gummy|gummies|chocolate|candy|sour|fish|jelly)\b/.test(m)
+      || /^(?:what(?:'s| is) good|what about those|and the brands)[?.!]*$/.test(m);
+  },
+
+  _kosherCandy() {
+    const back = this._offTopicReturn('kosher candy at the table');
+    return `**Snack-bowl call:** kosher candy is welcome. The brand is a hint. The symbol on that bag is the ruling.\n\nLook for **OU**, **OK**, **Star-K**, **Kof-K**, or **cRc**. No symbol, it stays out of the bowl. A **D** beside the symbol means dairy, so keep it off a meat plate. Passover is a different bag. It has to say kosher for Passover.\n\nWhen the mark is printed on the package, I like **Paskesz** (made for a kosher table), **Sour Patch Kids**, and **Swedish Fish**. **Jelly Belly** only when that bag shows the **OU**. A bag with no OU is not the one. **Sunkist Fruit Gems** are the old simcha candy. They left the shelf, so do not trust the memory until a new bag has a symbol.\n\n${back}`;
   },
 
   _offTopicLane(message) {
