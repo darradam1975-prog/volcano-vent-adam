@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=84">
+  <link rel="stylesheet" href="css/styles.css?v=85">
 </head>
 <body>
   <div class="app-shell">
@@ -41,6 +41,7 @@
           <span class="voice-icon" aria-hidden="true">🔇</span>
           <span class="voice-label">AI</span>
         </button>
+        <button class="account-btn" id="account-btn" type="button" title="Sign in with Google or a password">Sign in</button>
         <button class="icon-btn" id="settings-btn" type="button" title="Settings" aria-label="Settings">⚙️</button>
       </div>
     </header>
@@ -155,6 +156,59 @@
         <button class="modal-close" id="settings-close" type="button" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
+        <section class="settings-section settings-account" id="account-section">
+          <h3>Account</h3>
+          <p id="account-status">Sign in with Google, then set a password for this account.</p>
+          <p class="settings-error hidden" id="account-error"></p>
+          <div id="account-signed-out">
+            <div id="google-signin-btn" class="google-signin-btn"></div>
+            <div id="account-google-setup">
+              <p class="settings-note">Create a Google Cloud OAuth client of type Web. Add JavaScript origins https://volcano-vent.com and https://darradam1975-prog.github.io. Paste the client ID here.</p>
+              <label>
+                Google client ID
+                <input type="text" id="account-google-client" placeholder="….apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+              </label>
+              <div class="modal-actions">
+                <button class="btn-secondary" id="account-save-client" type="button">Save Google client ID</button>
+              </div>
+            </div>
+            <p class="account-or">or</p>
+            <label>
+              Email
+              <input type="email" id="account-email" autocomplete="username" spellcheck="false">
+            </label>
+            <label>
+              Password
+              <input type="password" id="account-password" autocomplete="current-password">
+            </label>
+            <div class="modal-actions">
+              <button class="btn-primary" id="account-password-signin" type="button">Sign in with password</button>
+            </div>
+            <p class="settings-note">Password sign-in works after you sign in with Google once and set a password. The cloud stores a hash of the password.</p>
+          </div>
+          <div id="account-signed-in" class="hidden">
+            <p id="account-who"></p>
+            <div id="account-current-wrap" class="hidden">
+              <label>
+                Current password
+                <input type="password" id="account-current-password" autocomplete="current-password">
+              </label>
+            </div>
+            <label>
+              New password
+              <input type="password" id="account-new-password" autocomplete="new-password">
+            </label>
+            <label>
+              Confirm password
+              <input type="password" id="account-confirm-password" autocomplete="new-password">
+            </label>
+            <div class="modal-actions">
+              <button class="btn-primary" id="account-save-password" type="button">Set password</button>
+              <button class="btn-secondary" id="account-sign-out" type="button">Sign out</button>
+            </div>
+            <p class="settings-note">This account’s chats sync to this device. Signing out leaves the chats here.</p>
+          </div>
+        </section>
         <section class="settings-section">
           <h3>Birthday</h3>
           <p id="settings-birthday-status">No birthday saved yet. Pretend-bet chat needs 18+.</p>
@@ -263,7 +317,7 @@
     </div>
   </div>
 
-  <script src="js/cloud-config.js?v=65"></script>
+  <script src="js/cloud-config.js?v=85"></script>
   <script src="js/site-config.js?v=65"></script>
   <script src="js/rules.js?v=83"></script>
   <script src="js/teach-flow.js?v=65"></script>
@@ -275,6 +329,7 @@
   <script src="js/llm.js?v=84"></script>
   <script src="js/adam.js?v=84"></script>
   <script src="js/share.js?v=65"></script>
-  <script src="js/app.js?v=81"></script>
+  <script src="js/account.js?v=85"></script>
+  <script src="js/app.js?v=85"></script>
 </body>
 </html>

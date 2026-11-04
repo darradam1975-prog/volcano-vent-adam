@@ -205,6 +205,7 @@ function openSettings() {
   adamLlmSettings?.initSettingsUi?.();
   adamConversations?._updateSyncHint?.();
   adamVoice?.refreshVoices?.();
+  adamAccount?.render?.();
 }
 
 function closeSettings() {
@@ -266,6 +267,7 @@ function initApp() {
   adamChatScroll?.init?.();
   adamConversations?.init?.();
   adamShare?.bindUi?.();
+  adamAccount?.init?.();
 
   document.getElementById('send-btn')?.addEventListener('click', sendMessage);
   document.getElementById('chat-input')?.addEventListener('keydown', e => {

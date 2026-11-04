@@ -5,12 +5,14 @@
 import { handleChat } from './chat.mjs';
 import { handleSync } from './sync.mjs';
 import { handleShare } from './share.mjs';
+import { handleAuth } from './auth.mjs';
 import { jsonResponse } from './cors.mjs';
 
 const ROUTES = {
   chat: handleChat,
   sync: handleSync,
-  share: handleShare
+  share: handleShare,
+  auth: handleAuth
 };
 
 export default {
@@ -30,7 +32,7 @@ export default {
     const handler = ROUTES[route];
     if (!handler) {
       return jsonResponse({
-        error: 'Not found — use /chat, /sync, or /share',
+        error: 'Not found — use /chat, /sync, /share, or /auth',
         routes: Object.keys(ROUTES)
       }, 404);
     }

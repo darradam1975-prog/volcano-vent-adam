@@ -7,6 +7,7 @@ GitHub Pages serves the static app. This Worker handles:
 | `POST /chat` | OpenAI proxy (your API key from Settings) | No |
 | `GET/POST /sync` | Conversation sync by Sync ID | Yes |
 | `GET/POST/DELETE /share` | Public read-only share links | Yes |
+| `GET/POST /auth` | Google sign-in, password, session | Yes for sign-in |
 | `GET /health` | Health check | No |
 
 ## 1. Deploy the Worker (GPT only — no KV)
@@ -62,3 +63,4 @@ Point `ADAM_CLOUD_API_BASE` at `http://localhost:8787` while testing.
 
 - **Chat:** Your OpenAI key is sent from the browser to this Worker, then to OpenAI. The Worker does not store keys.
 - **Sync/share:** Data is stored in your Cloudflare KV namespace under user-chosen IDs.
+- **Account:** Google sign-in checks the ID token. A password is stored as a PBKDF2 hash. Set `GOOGLE_CLIENT_ID` in wrangler vars to your Web client ID, with JavaScript origins `https://volcano-vent.com` and `https://darradam1975-prog.github.io`.
