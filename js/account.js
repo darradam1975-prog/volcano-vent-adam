@@ -18,6 +18,7 @@ const adamAccount = {
       if (host === 'volcano-vent.com' || host === 'www.volcano-vent.com' || /netlify\.app$/i.test(host)) {
         return '/.netlify/functions/auth';
       }
+      if (host.endsWith('github.io')) return 'https://volcano-vent.com/.netlify/functions/auth';
     }
     if (typeof adamSite !== 'undefined') return adamSite.functionUrl('auth');
     return null;
